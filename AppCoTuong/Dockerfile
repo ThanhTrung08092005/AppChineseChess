@@ -15,6 +15,9 @@ WORKDIR /app
 
 COPY --from=build /publish ./
 
+# Đảm bảo wwwroot được copy (dotnet publish đã include nhưng copy thêm cho chắc)
+COPY --from=build /src/CoTuongAPI/wwwroot ./wwwroot
+
 ENV ASPNETCORE_ENVIRONMENT=Production
 EXPOSE 8080
 

@@ -26,3 +26,10 @@ D:\MyProject\AppCoTuong\CoTuongAPI\obj\Debug\net10.0\refint\CoTuongAPI.dll
 D:\MyProject\AppCoTuong\CoTuongAPI\obj\Debug\net10.0\CoTuongAPI.pdb
 D:\MyProject\AppCoTuong\CoTuongAPI\obj\Debug\net10.0\CoTuongAPI.genruntimeconfig.cache
 D:\MyProject\AppCoTuong\CoTuongAPI\obj\Debug\net10.0\ref\CoTuongAPI.dll
+D:\MyProject\AppCoTuong\CoTuongAPI\bin\Debug\net10.0\CoTuongAPI.staticwebassets.runtime.json
+D:\MyProject\AppCoTuong\CoTuongAPI\obj\Debug\net10.0\CoTuongAPI.sourcelink.json
+D:\MyProject\AppCoTuong\CoTuongAPI\obj\Debug\net10.0\compressed\pc9z10r36v-{0}-js02bqsnmp-js02bqsnmp.gz
+D:\MyProject\AppCoTuong\CoTuongAPI\obj\Debug\net10.0\compressed\jez7rkej63-{0}-zyw2wcfw79-zyw2wcfw79.gz
+D:\MyProject\AppCoTuong\CoTuongAPI\obj\Debug\net10.0\compressed\7s7ztthmft-{0}-180dmtdpho-180dmtdpho.gz
+D:\MyProject\AppCoTuong\CoTuongAPI\obj\Debug\net10.0\compressed\z4b8r6022a-{0}-g3h7a9wx5y-g3h7a9wx5y.gz
+D:\MyProject\AppCoTuong\CoTuongAPI\obj\Debug\net10.0\compressed\w23rvz5eub-{0}-rhozf9ynmf-rhozf9ynmf.gz
