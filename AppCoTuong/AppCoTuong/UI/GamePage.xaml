@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+    GamePage.xaml — Trang chơi cờ tướng
+    Hiển thị bàn cờ 10x9, thông tin lượt đi, nút điều khiển
+-->
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AppCoTuong.UI.GamePage"
+             Title="Ván cờ">
+
+    <Grid RowDefinitions="Auto,*,Auto" Padding="10">
+
+        <!-- ── Thanh thông tin trên ── -->
+        <HorizontalStackLayout Grid.Row="0"
+                               Spacing="16"
+                               Padding="8"
+                               BackgroundColor="#2C3E50">
+
+            <Label x:Name="LblTurn"
+                   Text="Lượt: Đỏ"
+                   TextColor="White"
+                   FontSize="16"
+                   VerticalOptions="Center" />
+
+            <Label x:Name="LblStatus"
+                   Text=""
+                   TextColor="#F39C12"
+                   FontSize="16"
+                   FontAttributes="Bold"
+                   VerticalOptions="Center" />
+
+        </HorizontalStackLayout>
+
+        <!-- ── Bàn cờ (Grid 10x9) ── -->
+        <ScrollView Grid.Row="1">
+            <Grid x:Name="BoardGrid"
+                  RowSpacing="0"
+                  ColumnSpacing="0"
+                  HorizontalOptions="Center"
+                  VerticalOptions="Center"
+                  BackgroundColor="#DEB887">
+                <!--
+                    Các ô bàn cờ sẽ được tạo động từ code-behind (GamePage.xaml.cs)
+                    bằng cách thêm Button/Label vào Grid theo vị trí (row, col).
+                -->
+            </Grid>
+        </ScrollView>
+
+        <!-- ── Thanh điều khiển dưới ── -->
+        <HorizontalStackLayout Grid.Row="2"
+                               Spacing="12"
+                               Padding="8"
+                               HorizontalOptions="Center">
+
+            <Button Text="↩ Hoàn tác"
+                    x:Name="BtnUndo"
+                    Clicked="OnUndoClicked"
+                    BackgroundColor="#8E44AD"
+                    TextColor="White"
+                    CornerRadius="6"
+                    WidthRequest="120" />
+
+            <Button Text="🤖 AI đi"
+                    x:Name="BtnAiMove"
+                    Clicked="OnAiMoveClicked"
+                    BackgroundColor="#27AE60"
+                    TextColor="White"
+                    CornerRadius="6"
+                    WidthRequest="120" />
+
+            <Button Text="🏳 Đầu hàng"
+                    x:Name="BtnResign"
+                    Clicked="OnResignClicked"
+                    BackgroundColor="#C0392B"
+                    TextColor="White"
+                    CornerRadius="6"
+                    WidthRequest="120" />
+
+        </HorizontalStackLayout>
+
+    </Grid>
+</ContentPage>

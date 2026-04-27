@@ -1,0 +1,14 @@
+D:\MyProject\AppCoTuong\AppCoTuong\bin\Debug\net10.0-windows\AppCoTuong.exe
+D:\MyProject\AppCoTuong\AppCoTuong\bin\Debug\net10.0-windows\AppCoTuong.deps.json
+D:\MyProject\AppCoTuong\AppCoTuong\bin\Debug\net10.0-windows\AppCoTuong.runtimeconfig.json
+D:\MyProject\AppCoTuong\AppCoTuong\bin\Debug\net10.0-windows\AppCoTuong.dll
+D:\MyProject\AppCoTuong\AppCoTuong\bin\Debug\net10.0-windows\AppCoTuong.pdb
+D:\MyProject\AppCoTuong\AppCoTuong\obj\Debug\net10.0-windows\AppCoTuong.GeneratedMSBuildEditorConfig.editorconfig
+D:\MyProject\AppCoTuong\AppCoTuong\obj\Debug\net10.0-windows\AppCoTuong.AssemblyInfoInputs.cache
+D:\MyProject\AppCoTuong\AppCoTuong\obj\Debug\net10.0-windows\AppCoTuong.AssemblyInfo.cs
+D:\MyProject\AppCoTuong\AppCoTuong\obj\Debug\net10.0-windows\AppCoTuong.csproj.CoreCompileInputs.cache
+D:\MyProject\AppCoTuong\AppCoTuong\obj\Debug\net10.0-windows\AppCoTuong.dll
+D:\MyProject\AppCoTuong\AppCoTuong\obj\Debug\net10.0-windows\refint\AppCoTuong.dll
+D:\MyProject\AppCoTuong\AppCoTuong\obj\Debug\net10.0-windows\AppCoTuong.pdb
+D:\MyProject\AppCoTuong\AppCoTuong\obj\Debug\net10.0-windows\AppCoTuong.genruntimeconfig.cache
+D:\MyProject\AppCoTuong\AppCoTuong\obj\Debug\net10.0-windows\ref\AppCoTuong.dll

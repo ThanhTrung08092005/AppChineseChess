@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+    MainPage.xaml — Trang chủ ứng dụng Cờ Tướng
+    Hiển thị menu chính: Chơi mới, Tiếp tục, Cài đặt
+-->
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AppCoTuong.UI.MainPage"
+             Title="Cờ Tướng">
+
+    <VerticalStackLayout Spacing="20"
+                         Padding="40"
+                         VerticalOptions="Center"
+                         HorizontalOptions="Center">
+
+        <!-- Logo / Tiêu đề -->
+        <Label Text="象棋 · Cờ Tướng"
+               FontSize="36"
+               FontAttributes="Bold"
+               HorizontalOptions="Center"
+               TextColor="#C0392B" />
+
+        <Label Text="Chinese Chess"
+               FontSize="16"
+               HorizontalOptions="Center"
+               TextColor="#7F8C8D" />
+
+        <BoxView HeightRequest="2" Color="#BDC3C7" Margin="0,10" />
+
+        <!-- Nút chơi mới -->
+        <Button Text="🎮  Ván mới"
+                x:Name="BtnNewGame"
+                Clicked="OnNewGameClicked"
+                BackgroundColor="#C0392B"
+                TextColor="White"
+                FontSize="18"
+                CornerRadius="8"
+                HeightRequest="50"
+                WidthRequest="220" />
+
+        <!-- Nút tiếp tục -->
+        <Button Text="▶  Tiếp tục"
+                x:Name="BtnContinue"
+                Clicked="OnContinueClicked"
+                BackgroundColor="#2980B9"
+                TextColor="White"
+                FontSize="18"
+                CornerRadius="8"
+                HeightRequest="50"
+                WidthRequest="220" />
+
+        <!-- Nút cài đặt -->
+        <Button Text="⚙  Cài đặt"
+                x:Name="BtnSettings"
+                Clicked="OnSettingsClicked"
+                BackgroundColor="#7F8C8D"
+                TextColor="White"
+                FontSize="18"
+                CornerRadius="8"
+                HeightRequest="50"
+                WidthRequest="220" />
+
+    </VerticalStackLayout>
+</ContentPage>
