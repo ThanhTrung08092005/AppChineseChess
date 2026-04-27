@@ -1,0 +1,16 @@
+# .NET
+**/bin/
+**/obj/
+**/.vs/
+
+# Node
+cottuong-web/node_modules/
+cottuong-web/dist/
+
+# Không ignore wwwroot vì chứa React build cần deploy
+# CoTuongAPI/wwwroot/
+
+# Misc
+*.user
+*.suo
+.DS_Store

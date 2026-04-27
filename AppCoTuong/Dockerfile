@@ -1,40 +1,21 @@
-# ── Stage 1: Build React frontend ────────────────────────────────────────────
-FROM node:20-alpine AS frontend-build
-WORKDIR /frontend
+# ── Build .NET API ────────────────────────────────────────────────────────────
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
 
-COPY cottuong-web/package*.json ./
-RUN npm ci
+COPY CoTuongAPI/CoTuongAPI.csproj ./CoTuongAPI/
+RUN dotnet restore CoTuongAPI/CoTuongAPI.csproj
 
-COPY cottuong-web/ ./
+COPY CoTuongAPI/ ./CoTuongAPI/
 
-# Trỏ API về cùng origin (không cần URL tuyệt đối khi deploy)
-ENV VITE_API_URL=""
-RUN npm run build
-# Output: /frontend/dist
+RUN dotnet publish CoTuongAPI/CoTuongAPI.csproj -c Release -o /publish
 
-# ── Stage 2: Build .NET API ───────────────────────────────────────────────────
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS backend-build
-WORKDIR /api
-
-COPY CoTuongAPI/CoTuongAPI.csproj ./
-RUN dotnet restore
-
-COPY CoTuongAPI/ ./
-
-# Copy React build vào wwwroot để API serve luôn
-COPY --from=frontend-build /frontend/dist ./wwwroot
-
-RUN dotnet publish -c Release -o /publish
-
-# ── Stage 3: Runtime image (nhỏ gọn) ─────────────────────────────────────────
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+# ── Runtime ───────────────────────────────────────────────────────────────────
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 
-COPY --from=backend-build /publish ./
+COPY --from=build /publish ./
 
-# Railway inject PORT tự động qua biến môi trường
-ENV ASPNETCORE_URLS=http://+:${PORT:-8080}
 ENV ASPNETCORE_ENVIRONMENT=Production
-
 EXPOSE 8080
+
 ENTRYPOINT ["dotnet", "CoTuongAPI.dll"]
