@@ -72,8 +72,10 @@ export default function App() {
     return (
       <div className="app menu-screen">
         <div className="menu-container">
-          <h1 className="menu-title">象棋 · Cờ Tướng</h1>
-          <p className="menu-subtitle">Chinese Chess</p>
+          <div className="menu-ornament">龍</div>
+          <h1 className="menu-title">象棋</h1>
+          <p className="menu-subtitle">Cờ Tướng · Chinese Chess</p>
+          <div className="menu-divider" />
 
           <div className="menu-buttons">
             <button className="menu-btn btn-green" onClick={() => startLocal('pvai')}>
