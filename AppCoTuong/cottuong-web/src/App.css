@@ -231,6 +231,8 @@ body {
 .menu-icon { font-size: 1.4rem; }
 .menu-time { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: #aaa; }
 .menu-user { font-size: 0.88rem; color: #888; }
+.user-info-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.btn-sm { padding: 5px 12px; font-size: 0.8rem; }
 
 /* ── Modal ── */
 .modal-overlay {

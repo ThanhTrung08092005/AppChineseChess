@@ -109,9 +109,16 @@ export default function App() {
           {/* User info */}
           <div className="menu-user">
             {user ? (
-              <span>👤 {user.username} ({user.wins}W-{user.losses}L)</span>
+              <div className="user-info-row">
+                <span>👤 {user.username} ({user.wins}W-{user.losses}L)</span>
+                <button className="btn btn-red btn-sm" onClick={() => {
+                  localStorage.removeItem('ct_token');
+                  localStorage.removeItem('ct_user');
+                  setUser(null);
+                }}>Đăng xuất</button>
+              </div>
             ) : (
-              <button className="btn btn-orange" onClick={() => setShowAuth(true)}>Đăng nhập</button>
+              <button className="btn btn-orange" onClick={() => setShowAuth(true)}>Đăng nhập / Đăng ký</button>
             )}
           </div>
         </div>
