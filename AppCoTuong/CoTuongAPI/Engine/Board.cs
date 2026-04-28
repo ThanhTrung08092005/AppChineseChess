@@ -10,10 +10,8 @@ namespace CoTuongAPI.Engine
 
         public Board() => SetupInitialPosition();
 
-        private Board(bool _) { } // constructor nội bộ cho Clone
-
-        /// <summary>Constructor cho FenConverter — không setup vị trí ban đầu</summary>
-        public Board(bool skipSetup = false)
+        /// <summary>skipSetup=true: board trống, dùng cho Clone và FenConverter</summary>
+        public Board(bool skipSetup)
         {
             if (!skipSetup) SetupInitialPosition();
         }
@@ -106,7 +104,7 @@ namespace CoTuongAPI.Engine
         // ── Clone (AI dùng bản sao, không đụng board gốc) ────────────────────
         public Board Clone()
         {
-            var copy = new Board(false);
+            var copy = new Board(skipSetup: true);
             for (int r = 0; r < Rows; r++)
                 for (int c = 0; c < Cols; c++)
                 {
