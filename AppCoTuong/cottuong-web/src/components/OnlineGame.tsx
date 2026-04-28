@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import Board from './Board';
-import Clock from './Clock';
 import MoveHistory from './MoveHistory';
-import CapturedPieces from './CapturedPieces';
 import { useOnlineGame } from '../hooks/useOnlineGame';
 import { useClock } from '../hooks/useClock';
 
@@ -11,6 +9,12 @@ interface Props {
   playerId:   string;
   playerName: string;
   onLeave:    () => void;
+}
+
+function fmt(s: number) {
+  if (s >= 9999) return '∞';
+  const m = Math.floor(s / 60), sec = s % 60;
+  return `${m}:${sec.toString().padStart(2, '0')}`;
 }
 
 export default function OnlineGame({ roomId, playerId, playerName, onLeave }: Props) {
@@ -28,33 +32,58 @@ export default function OnlineGame({ roomId, playerId, playerName, onLeave }: Pr
     setChatInput('');
   };
 
+  const statusText = () => {
+    if (!state) return 'Đang kết nối...';
+    if (state.status === 'checkmate') return `${state.winner === 'red' ? '🔴 ĐỎ' : '⚫ ĐEN'} THẮNG!`;
+    if (state.status === 'check')     return `⚠ ${state.currentTurn === 'red' ? 'ĐỎ' : 'ĐEN'} bị CHIẾU`;
+    return `Lượt: ${state.currentTurn === 'red' ? '🔴 ĐỎ' : '⚫ ĐEN'}`;
+  };
+  const statusCls = state?.status === 'checkmate' ? 'win' : state?.status === 'check' ? 'check' : '';
+
+  const redCaptured   = state?.capturedRed   ?? [];
+  const blackCaptured = state?.capturedBlack ?? [];
+
   return (
-    <div className="online-game">
+    <div className="online-game-page">
       {/* Header */}
-      <div className="online-header">
-        <span className="room-badge">Phòng: <strong>{roomId}</strong></span>
-        <span className={`conn-badge ${connected ? 'connected' : 'disconnected'}`}>
-          {connected ? '🟢 Kết nối' : '🔴 Mất kết nối'}
+      <div className="game-header">
+        <span className="badge badge-gold">Phòng: {roomId}</span>
+        <span className={`badge ${connected ? 'badge-green' : 'badge-red'}`}>
+          {connected ? '● Kết nối' : '● Mất kết nối'}
         </span>
-        {myColor && <span className="color-badge">Bạn: {myColor === 'red' ? '🔴 ĐỎ' : '⚫ ĐEN'}</span>}
-        <button className="btn btn-red" style={{ marginLeft: 'auto' }} onClick={onLeave}>← Rời phòng</button>
+        {myColor && (
+          <span className={`badge ${myColor === 'red' ? 'badge-red' : 'badge-blue'}`}>
+            Bạn: {myColor === 'red' ? '🔴 ĐỎ' : '⚫ ĐEN'}
+          </span>
+        )}
+        <button className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }} onClick={onLeave}>
+          ← Rời phòng
+        </button>
       </div>
 
       <div className="online-body">
-        {/* Bàn cờ */}
-        <div className="board-col">
-          <Clock time={blackTime} active={state?.currentTurn === 'black' && state?.status !== 'checkmate'} color="black" label="⚫ ĐEN" />
-          {state && <CapturedPieces pieces={state.capturedBlack} label="Bị ăn" />}
+        {/* Board column */}
+        <div className="online-board-col">
+          {/* Black panel */}
+          <div className={`player-panel${state?.currentTurn === 'black' && state?.status !== 'checkmate' ? ' active' : ''}${blackTime <= 30 && state?.currentTurn === 'black' ? ' urgent' : ''}`}>
+            <div className="pp-avatar black">將</div>
+            <div className="pp-name">⚫ ĐEN {myColor === 'black' ? '(Bạn)' : ''}</div>
+            <div className="pp-captured">
+              {blackCaptured.map((p, i) => <span key={i} className="pp-piece">{p.symbol}</span>)}
+            </div>
+            <div className={`pp-clock black-time${blackTime <= 30 && state?.currentTurn === 'black' ? ' urgent' : ''}`}>
+              {fmt(blackTime)}
+            </div>
+          </div>
+
+          {/* Board */}
           <div className="board-wrap">
             {waiting ? (
-              <div className="waiting-msg">
-                <div>
-                  <div style={{ fontSize: '2rem', marginBottom: 8 }}>⏳</div>
-                  <div>Đang chờ người chơi thứ 2...</div>
-                  <div style={{ fontSize: '0.85rem', marginTop: 8, color: '#888' }}>
-                    Mã phòng: <strong style={{ color: '#F39C12' }}>{roomId}</strong>
-                  </div>
-                </div>
+              <div className="waiting-screen">
+                <div style={{ fontSize: '2.5rem' }}>⏳</div>
+                <h3>Đang chờ người chơi thứ 2...</h3>
+                <p>Chia sẻ mã phòng cho bạn bè</p>
+                <div className="room-code-display">{roomId}</div>
               </div>
             ) : state ? (
               <Board
@@ -67,59 +96,73 @@ export default function OnlineGame({ roomId, playerId, playerName, onLeave }: Pr
                 disabled={isDisabled}
               />
             ) : (
-              <div className="waiting-msg">
-                <div>Đang kết nối...</div>
+              <div className="waiting-screen">
+                <div style={{ fontSize: '1.5rem', color: '#5c3317' }}>Đang kết nối...</div>
               </div>
             )}
           </div>
-          {state && <CapturedPieces pieces={state.capturedRed} label="Bị ăn" />}
-          <Clock time={redTime} active={state?.currentTurn === 'red' && state?.status !== 'checkmate'} color="red" label="🔴 ĐỎ" />
+
+          {/* Red panel */}
+          <div className={`player-panel${state?.currentTurn === 'red' && state?.status !== 'checkmate' ? ' active' : ''}${redTime <= 30 && state?.currentTurn === 'red' ? ' urgent' : ''}`}>
+            <div className="pp-avatar red">帥</div>
+            <div className="pp-name">🔴 ĐỎ {myColor === 'red' ? '(Bạn)' : ''}</div>
+            <div className="pp-captured">
+              {redCaptured.map((p, i) => <span key={i} className="pp-piece">{p.symbol}</span>)}
+            </div>
+            <div className={`pp-clock red-time${redTime <= 30 && state?.currentTurn === 'red' ? ' urgent' : ''}`}>
+              {fmt(redTime)}
+            </div>
+          </div>
         </div>
 
-        {/* Sidebar */}
-        <div className="online-sidebar">
-          {/* Trạng thái */}
-          {state && (
-            <div className={`status-box ${state.status === 'checkmate' ? 'win' : state.status === 'check' ? 'check' : ''}`}>
-              {state.status === 'checkmate'
-                ? `🏆 ${state.winner === 'red' ? 'ĐỎ' : 'ĐEN'} THẮNG!`
-                : state.status === 'check'
-                ? `⚠ ${state.currentTurn === 'red' ? 'ĐỎ' : 'ĐEN'} bị CHIẾU!`
-                : `Lượt: ${state.currentTurn === 'red' ? '🔴 ĐỎ' : '⚫ ĐEN'}`}
-            </div>
-          )}
+        {/* Right panel */}
+        <div className="online-panel">
+          {/* Status */}
+          <div className="game-panel-section">
+            <div className={`status-badge ${statusCls}`}>{statusText()}</div>
+          </div>
 
-          {/* Lịch sử */}
+          {/* Move history */}
           {state && state.moveHistory.length > 0 && (
-            <div style={{ flex: 1, minHeight: 0 }}>
-              <MoveHistory history={state.moveHistory} />
+            <div className="game-panel-section" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <h4>📋 Lịch sử ({state.moveCount})</h4>
+              <div className="history-scroll">
+                <MoveHistory history={state.moveHistory} />
+              </div>
             </div>
           )}
 
           {/* Chat */}
-          <div className="chat-box">
-            <div className="chat-messages">
+          <div className="chat-panel">
+            <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--border)', fontSize: '.78rem', color: 'var(--muted)', fontWeight: 600 }}>
+              💬 Chat
+            </div>
+            <div className="chat-panel-msgs">
               {chat.map((m, i) => (
                 <div key={i} className="chat-msg">
-                  <span className="chat-time">{m.time}</span>
-                  <span className="chat-name">{m.playerName}:</span>
-                  <span>{m.message}</span>
+                  <span className="chat-msg-name">{m.playerName}</span>
+                  <span style={{ color: 'var(--muted)', fontSize: '.7rem', marginRight: 4 }}>{m.time}</span>
+                  {m.message}
                 </div>
               ))}
             </div>
-            <div className="chat-input-row">
+            <div className="chat-panel-input">
               <input
-                className="modal-input" style={{ flex: 1, margin: 0 }}
+                className="chat-input"
                 placeholder="Nhắn tin..."
                 value={chatInput}
                 onChange={e => setChatInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && sendMsg()}
               />
-              <button className="btn btn-blue" style={{ padding: '6px 12px' }} onClick={sendMsg}>Gửi</button>
+              <button className="btn btn-blue btn-sm" onClick={sendMsg}>Gửi</button>
             </div>
           </div>
 
-          {error && <div className="error-box">⚠ {error}</div>}
+          {error && (
+            <div className="game-panel-section">
+              <div style={{ fontSize: '.78rem', color: '#ff8a80' }}>⚠ {error}</div>
+            </div>
+          )}
         </div>
       </div>
     </div>
