@@ -5,7 +5,7 @@ import MoveHistory from './components/MoveHistory';
 import CapturedPieces from './components/CapturedPieces';
 import AuthModal from './components/AuthModal';
 import Leaderboard from './components/Leaderboard';
-import RoomLobby from './components/RoomLobby';
+import OnlineLobbyScreen from './components/OnlineLobbyScreen';
 import OnlineGame from './components/OnlineGame';
 import { useGame } from './hooks/useGame';
 import { useClock } from './hooks/useClock';
@@ -13,14 +13,13 @@ import { api } from './api/gameApi';
 import type { UserInfo } from './api/authApi';
 import './App.css';
 
-type Screen = 'menu' | 'local' | 'online';
+type Screen = 'menu' | 'local' | 'lobby' | 'online';
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('menu');
   const [user,   setUser]   = useState<UserInfo | null>(null);
   const [showAuth, setShowAuth] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
-  const [showLobby, setShowLobby] = useState(false);
   const [onlineRoomId, setOnlineRoomId] = useState('');
 
   const {
@@ -45,19 +44,17 @@ export default function App() {
   };
 
   const startOnline = () => {
-    if (!user) { setShowAuth(true); return; }
-    setShowLobby(true);
+    setScreen('lobby');
   };
 
   const joinRoom = (roomId: string) => {
     setOnlineRoomId(roomId);
-    setShowLobby(false);
     setScreen('online');
   };
 
   const leaveOnline = () => {
     setOnlineRoomId('');
-    setScreen('menu');
+    setScreen('lobby');
   };
 
   const exportPgn = () => {
@@ -131,18 +128,30 @@ export default function App() {
     );
   }
 
+  // ── Lobby Screen ──────────────────────────────────────────────────────────
+  if (screen === 'lobby') {
+    return (
+      <>
+        <OnlineLobbyScreen
+          user={user}
+          onJoin={joinRoom}
+          onBack={() => setScreen('menu')}
+          onNeedAuth={() => setShowAuth(true)}
+        />
+        {showAuth && <AuthModal onClose={u => { setShowAuth(false); if (u) setUser(u); }} />}
+      </>
+    );
+  }
+
   // ── Online Screen ──────────────────────────────────────────────────────────
   if (screen === 'online' && onlineRoomId) {
     return (
-      <>
-        <OnlineGame
-          roomId={onlineRoomId}
-          playerId={user?.id ?? 'guest'}
-          playerName={user?.username ?? 'Khách'}
-          onLeave={leaveOnline}
-        />
-        {showLobby && <RoomLobby playerId={user?.id ?? 'guest'} playerName={user?.username ?? 'Khách'} onJoin={joinRoom} onClose={() => setShowLobby(false)} />}
-      </>
+      <OnlineGame
+        roomId={onlineRoomId}
+        playerId={user?.id ?? 'guest'}
+        playerName={user?.username ?? 'Khách'}
+        onLeave={leaveOnline}
+      />
     );
   }
 
@@ -237,8 +246,6 @@ export default function App() {
           </div>
         </aside>
       </div>
-
-      {showLobby && <RoomLobby playerId={user?.id ?? 'guest'} playerName={user?.username ?? 'Khách'} onJoin={joinRoom} onClose={() => setShowLobby(false)} />}
     </div>
   );
 }
