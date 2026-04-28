@@ -6,6 +6,7 @@ interface Props {
   legalMoves:  MoveDto[];
   lastMove:    MoveDto | null;
   selected:    [number, number] | null;
+  hintMove:    MoveDto | null;
   onCellClick: (row: number, col: number) => void;
   disabled:    boolean;
 }
@@ -27,7 +28,7 @@ function calcSize() {
   return { cell, marg, pr, w, h };
 }
 
-export default function Board({ board, legalMoves, lastMove, selected, onCellClick, disabled }: Props) {
+export default function Board({ board, legalMoves, lastMove, selected, hintMove, onCellClick, disabled }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState(calcSize);
 
@@ -49,8 +50,6 @@ export default function Board({ board, legalMoves, lastMove, selected, onCellCli
     if (!canvas) return;
     const g = canvas.getContext('2d')!;
     g.clearRect(0, 0, W, H);
-
-    // Nền
     g.fillStyle = BOARD_BG;
     g.fillRect(0, 0, W, H);
 
@@ -125,6 +124,18 @@ export default function Board({ board, legalMoves, lastMove, selected, onCellCli
       }
     }
 
+    // Hint move (gợi ý)
+    if (hintMove) {
+      for (const pos of [[hintMove.fromRow, hintMove.fromCol],[hintMove.toRow, hintMove.toCol]]) {
+        const cx = MARG + pos[1]*CELL, cy = MARG + pos[0]*CELL;
+        g.fillStyle = 'rgba(156,39,176,0.35)';
+        g.beginPath(); g.arc(cx, cy, PR+4, 0, Math.PI*2); g.fill();
+      }
+      g.strokeStyle = '#9C27B0'; g.lineWidth = Math.max(2, CELL*0.05);
+      const hcx = MARG + hintMove.toCol*CELL, hcy = MARG + hintMove.toRow*CELL;
+      g.beginPath(); g.arc(hcx, hcy, PR+4, 0, Math.PI*2); g.stroke();
+    }
+
     // Quân cờ
     const fontSize = Math.max(10, Math.floor(PR * 1.1));
     for (let r = 0; r < ROWS; r++) {
@@ -156,7 +167,7 @@ export default function Board({ board, legalMoves, lastMove, selected, onCellCli
         g.fillText(cell.symbol ?? '', cx, cy + 1);
       }
     }
-  }, [board, hints, lastMove, selected, CELL, MARG, PR, W, H]);
+  }, [board, hints, lastMove, selected, hintMove, CELL, MARG, PR, W, H]);
 
   useEffect(() => { draw(); }, [draw]);
 
