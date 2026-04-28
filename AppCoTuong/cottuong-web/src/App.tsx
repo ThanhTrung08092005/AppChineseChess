@@ -13,19 +13,18 @@ import './App.css';
 
 type Screen = 'home' | 'local' | 'online' | 'online-game';
 
-const TIME_OPTIONS = [
-  { label: '1+0',  sub: '1 phút',  val: 60   },
-  { label: '3+0',  sub: '3 phút',  val: 180  },
-  { label: '5+0',  sub: '5 phút',  val: 300  },
-  { label: '10+0', sub: '10 phút', val: 600  },
-  { label: '15+0', sub: '15 phút', val: 900  },
-  { label: '∞',    sub: 'Vô hạn',  val: 9999 },
+const TIMES = [
+  { l: '1+0',  s: '1 phút',  v: 60   },
+  { l: '3+0',  s: '3 phút',  v: 180  },
+  { l: '5+0',  s: '5 phút',  v: 300  },
+  { l: '10+0', s: '10 phút', v: 600  },
+  { l: '15+0', s: '15 phút', v: 900  },
+  { l: '∞',    s: 'Vô hạn',  v: 9999 },
 ];
 
 function fmt(s: number) {
   if (s >= 9999) return '∞';
-  const m = Math.floor(s / 60), sec = s % 60;
-  return `${m}:${sec.toString().padStart(2, '0')}`;
+  return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 }
 
 export default function App() {
@@ -34,9 +33,9 @@ export default function App() {
   const [showAuth, setShowAuth] = useState(false);
   const [showLb,   setShowLb]   = useState(false);
   const [roomId,   setRoomId]   = useState('');
-  const [timeVal,  setTimeVal]  = useState(600);
-  const [gameMode, setGameMode] = useState<'pvai' | 'pvp'>('pvai');
-  const [showHist, setShowHist] = useState(true);
+  const [tv,       setTv]       = useState(600);
+  const [mode,     setMode]     = useState<'pvai' | 'pvp'>('pvai');
+  const [showH,    setShowH]    = useState(true);
 
   const {
     state, selected, loading, hinting, error,
@@ -47,336 +46,253 @@ export default function App() {
   const { redTime, blackTime } = useClock(state);
 
   useEffect(() => {
-    const saved = localStorage.getItem('ct_user');
-    if (saved) try { setUser(JSON.parse(saved)); } catch {}
+    try { const s = localStorage.getItem('ct_user'); if (s) setUser(JSON.parse(s)); } catch {}
   }, []);
 
-  const startGame = (mode: 'pvai' | 'pvp') => {
-    setGameMode(mode);
-    setScreen('local');
-    newGame(mode, timeVal);
-  };
+  const play = (m: 'pvai' | 'pvp') => { setMode(m); setScreen('local'); newGame(m, tv); };
+  const logout = () => { localStorage.removeItem('ct_token'); localStorage.removeItem('ct_user'); setUser(null); };
 
-  const logout = () => {
-    localStorage.removeItem('ct_token');
-    localStorage.removeItem('ct_user');
-    setUser(null);
-  };
-
-  const statusText = () => {
+  const stText = () => {
     if (!state) return '...';
     if (state.status === 'checkmate') return `${state.winner === 'red' ? '🔴 ĐỎ' : '⚫ ĐEN'} THẮNG!`;
     if (state.status === 'check')     return `⚠ ${state.currentTurn === 'red' ? 'ĐỎ' : 'ĐEN'} bị CHIẾU`;
     if (loading)                      return '🤖 AI đang suy nghĩ...';
     return `Lượt: ${state.currentTurn === 'red' ? '🔴 ĐỎ' : '⚫ ĐEN'}`;
   };
-  const statusCls = state?.status === 'checkmate' ? 'win'
-    : state?.status === 'check' ? 'check'
-    : loading ? 'thinking' : '';
+  const stCls = state?.status === 'checkmate' ? 'win' : state?.status === 'check' ? 'check' : loading ? 'thinking' : '';
+  const disabled = loading || !state || state.status === 'checkmate' || (state.mode === 'pvai' && state.currentTurn === 'black');
 
-  const isDisabled = loading || !state || state.status === 'checkmate'
-    || (state.mode === 'pvai' && state.currentTurn === 'black');
-
-  // ── Sidebar ──────────────────────────────────────────────────────────────
-  const Sidebar = () => (
+  /* ── Sidebar ── */
+  const SB = () => (
     <aside className="sidebar">
-      <a className="sidebar-logo" href="#" onClick={e => { e.preventDefault(); setScreen('home'); }}>
-        <div className="sidebar-logo-icon">象</div>
-        <span className="sidebar-logo-text">Cờ Tướng</span>
-      </a>
-
-      <nav className="sidebar-nav">
-        <div className="nav-group">
-          <button className={`nav-item${screen === 'home' ? ' active' : ''}`}
-            onClick={() => setScreen('home')}>
-            <span className="nav-item-icon">🏠</span>
-            <span className="nav-item-label">Trang chủ</span>
-          </button>
-          <button className={`nav-item${screen === 'local' && gameMode === 'pvai' ? ' active' : ''}`}
-            onClick={() => startGame('pvai')}>
-            <span className="nav-item-icon">🤖</span>
-            <span className="nav-item-label">Chơi với máy tính</span>
-          </button>
-          <button className={`nav-item${screen === 'local' && gameMode === 'pvp' ? ' active' : ''}`}
-            onClick={() => startGame('pvp')}>
-            <span className="nav-item-icon">👥</span>
-            <span className="nav-item-label">Chơi 2 người</span>
-          </button>
-          <button className={`nav-item${screen === 'online' || screen === 'online-game' ? ' active' : ''}`}
-            onClick={() => setScreen('online')}>
-            <span className="nav-item-icon">🌐</span>
-            <span className="nav-item-label">Chơi trực tuyến</span>
-            <span className="nav-item-arrow">›</span>
-          </button>
-        </div>
-
-        <div className="nav-divider" />
-
-        <div className="nav-group">
-          <button className="nav-item" onClick={() => setShowLb(true)}>
-            <span className="nav-item-icon">🏆</span>
-            <span className="nav-item-label">Bảng xếp hạng</span>
-          </button>
-        </div>
+      <div className="sb-logo" onClick={() => setScreen('home')}>
+        <div className="sb-logo-icon">象</div>
+        <span className="sb-logo-text">Cờ Tướng</span>
+      </div>
+      <nav className="sb-nav">
+        <button className={`sb-item${screen === 'home' ? ' active' : ''}`} onClick={() => setScreen('home')}>
+          <span className="sb-item-icon">🏠</span>
+          <span className="sb-item-label">Trang chủ</span>
+        </button>
+        <button className={`sb-item${screen === 'online' || screen === 'online-game' ? ' active' : ''}`}
+          onClick={() => setScreen('online')}>
+          <span className="sb-item-icon">🌐</span>
+          <span className="sb-item-label">Chơi trực tuyến</span>
+          <span className="sb-item-chevron">›</span>
+        </button>
+        <button className={`sb-item${screen === 'local' && mode === 'pvai' ? ' active' : ''}`} onClick={() => play('pvai')}>
+          <span className="sb-item-icon">🤖</span>
+          <span className="sb-item-label">Chơi với máy tính</span>
+          <span className="sb-item-chevron">›</span>
+        </button>
+        <button className={`sb-item${screen === 'local' && mode === 'pvp' ? ' active' : ''}`} onClick={() => play('pvp')}>
+          <span className="sb-item-icon">👥</span>
+          <span className="sb-item-label">Chơi 2 người</span>
+          <span className="sb-item-chevron">›</span>
+        </button>
+        <div className="sb-divider" />
+        <button className="sb-item" onClick={() => setShowLb(true)}>
+          <span className="sb-item-icon">🏆</span>
+          <span className="sb-item-label">Bảng xếp hạng</span>
+        </button>
       </nav>
-
-      <div className="sidebar-bottom">
-        <button className="nav-item" style={{ width: '100%' }}
-          onClick={() => setShowAuth(true)}>
-          <span className="nav-item-icon">⚙</span>
-          <span className="nav-item-label">Cài đặt</span>
+      <div className="sb-bottom">
+        <button className="sb-item" style={{ width: '100%' }} onClick={() => setShowAuth(true)}>
+          <span className="sb-item-icon">⚙</span>
+          <span className="sb-item-label">Cài đặt</span>
         </button>
         {user ? (
-          <div className="sidebar-user" onClick={logout} title="Đăng xuất">
-            <div className="user-avatar">{user.username[0].toUpperCase()}</div>
-            <span className="user-name">{user.username}</span>
-            <span className="user-badge">{user.wins}W</span>
+          <div className="sb-user" onClick={logout} title="Nhấn để đăng xuất">
+            <div className="sb-avatar">{user.username[0].toUpperCase()}</div>
+            <span className="sb-username">{user.username}</span>
+            <span className="sb-wins">{user.wins}W</span>
           </div>
         ) : (
-          <button className="nav-item" style={{ width: '100%' }}
-            onClick={() => setShowAuth(true)}>
-            <span className="nav-item-icon">👤</span>
-            <span className="nav-item-label">Đăng nhập</span>
+          <button className="sb-item" style={{ width: '100%' }} onClick={() => setShowAuth(true)}>
+            <span className="sb-item-icon">👤</span>
+            <span className="sb-item-label">Đăng nhập</span>
           </button>
         )}
       </div>
     </aside>
   );
 
-  // ══════════════════════════════════════════════════════
-  // HOME SCREEN
-  // ══════════════════════════════════════════════════════
+  /* ══════════════════════════════════════════════
+     HOME
+     ══════════════════════════════════════════════ */
   if (screen === 'home') return (
-    <div className="app-shell">
-      <Sidebar />
-      <main className="main-content">
-        <div className="home-screen">
+    <div className="shell">
+      <SB />
+      <main className="main">
+        <div className="home">
           <div className="home-inner">
-            <div className="home-title">
-              <h1>Chào mừng đến với<br /><strong>Cờ Tướng Online!</strong></h1>
-            </div>
+            <h1 className="home-heading">
+              Chào mừng đến với<br /><strong>Cờ Tướng Online!</strong>
+            </h1>
 
-            <button className="menu-card" onClick={() => setScreen('online')}>
-              <div className="menu-card-icon">🌐</div>
-              <div className="menu-card-body">
-                <div className="menu-card-title">Chơi trực tuyến</div>
-                <div className="menu-card-desc">Chơi cờ với các bạn cờ trên thế giới</div>
+            <button className="home-card" onClick={() => setScreen('online')}>
+              <div className="home-card-icon">🌐</div>
+              <div className="home-card-body">
+                <div className="home-card-title">Chơi trực tuyến</div>
+                <div className="home-card-desc">Chơi cờ với các bạn cờ trên thế giới</div>
               </div>
-              <span className="menu-card-arrow">›</span>
+              <span className="home-card-arrow">›</span>
             </button>
 
-            <button className="menu-card" onClick={() => startGame('pvai')}>
-              <div className="menu-card-icon">🤖</div>
-              <div className="menu-card-body">
-                <div className="menu-card-title">Chơi với máy tính</div>
-                <div className="menu-card-desc">Thi đấu với AI kiểm tra năng lực của bạn</div>
+            <button className="home-card" onClick={() => play('pvai')}>
+              <div className="home-card-icon">🤖</div>
+              <div className="home-card-body">
+                <div className="home-card-title">Chơi với máy tính</div>
+                <div className="home-card-desc">Thi đấu với AI kiểm tra năng lực của bạn</div>
               </div>
-              <span className="menu-card-arrow">›</span>
+              <span className="home-card-arrow">›</span>
             </button>
 
-            <button className="menu-card" onClick={() => startGame('pvp')}>
-              <div className="menu-card-icon">👥</div>
-              <div className="menu-card-body">
-                <div className="menu-card-title">Chơi 2 người (cùng máy)</div>
-                <div className="menu-card-desc">Chơi cờ với bạn bè trên cùng thiết bị</div>
+            <button className="home-card" onClick={() => play('pvp')}>
+              <div className="home-card-icon">👥</div>
+              <div className="home-card-body">
+                <div className="home-card-title">Chơi 2 người (cùng máy)</div>
+                <div className="home-card-desc">Chơi cờ với bạn bè trên cùng thiết bị</div>
               </div>
-              <span className="menu-card-arrow">›</span>
+              <span className="home-card-arrow">›</span>
             </button>
 
-            <button className="menu-card" onClick={() => setShowLb(true)}>
-              <div className="menu-card-icon">🏆</div>
-              <div className="menu-card-body">
-                <div className="menu-card-title">Bảng xếp hạng</div>
-                <div className="menu-card-desc">Xem top người chơi giỏi nhất</div>
+            <button className="home-card" onClick={() => setShowLb(true)}>
+              <div className="home-card-icon">🏆</div>
+              <div className="home-card-body">
+                <div className="home-card-title">Bảng xếp hạng</div>
+                <div className="home-card-desc">Xem top người chơi giỏi nhất</div>
               </div>
-              <span className="menu-card-arrow">›</span>
+              <span className="home-card-arrow">›</span>
             </button>
 
-            {/* Time selector */}
-            <div className="home-time-row">
+            <div className="home-time">
               <label>Thời gian:</label>
-              {TIME_OPTIONS.map(t => (
-                <button key={t.val}
-                  className={`time-chip${timeVal === t.val ? ' active' : ''}`}
-                  onClick={() => setTimeVal(t.val)}>
-                  {t.label}
-                </button>
+              {TIMES.map(t => (
+                <button key={t.v} className={`tc${tv === t.v ? ' on' : ''}`} onClick={() => setTv(t.v)}>{t.l}</button>
               ))}
             </div>
           </div>
         </div>
       </main>
-
       {showAuth && <AuthModal onClose={u => { setShowAuth(false); if (u) setUser(u); }} />}
       {showLb   && <Leaderboard onClose={() => setShowLb(false)} />}
     </div>
   );
 
-  // ══════════════════════════════════════════════════════
-  // ONLINE SCREENS
-  // ══════════════════════════════════════════════════════
+  /* ══════════════════════════════════════════════
+     ONLINE
+     ══════════════════════════════════════════════ */
   if (screen === 'online') return (
-    <div className="app-shell">
-      <Sidebar />
-      <main className="main-content">
-        <OnlineLobbyScreen
-          user={user}
+    <div className="shell">
+      <SB />
+      <main className="main">
+        <OnlineLobbyScreen user={user}
           onJoin={id => { setRoomId(id); setScreen('online-game'); }}
           onBack={() => setScreen('home')}
-          onNeedAuth={() => setShowAuth(true)}
-        />
+          onNeedAuth={() => setShowAuth(true)} />
       </main>
       {showAuth && <AuthModal onClose={u => { setShowAuth(false); if (u) setUser(u); }} />}
     </div>
   );
 
   if (screen === 'online-game') return (
-    <div className="app-shell">
-      <Sidebar />
-      <main className="main-content">
-        <OnlineGame
-          roomId={roomId}
+    <div className="shell">
+      <SB />
+      <main className="main">
+        <OnlineGame roomId={roomId}
           playerId={user?.id ?? `guest_${Math.random().toString(36).slice(2, 8)}`}
           playerName={user?.username ?? 'Khách'}
-          onLeave={() => { setRoomId(''); setScreen('online'); }}
-        />
+          onLeave={() => { setRoomId(''); setScreen('online'); }} />
       </main>
       {showAuth && <AuthModal onClose={u => { setShowAuth(false); if (u) setUser(u); }} />}
     </div>
   );
 
-  // ══════════════════════════════════════════════════════
-  // LOCAL GAME SCREEN
-  // ══════════════════════════════════════════════════════
-  const redCaptured   = state?.capturedRed   ?? [];
-  const blackCaptured = state?.capturedBlack ?? [];
+  /* ══════════════════════════════════════════════
+     LOCAL GAME
+     ══════════════════════════════════════════════ */
+  const rc = state?.capturedRed   ?? [];
+  const bc = state?.capturedBlack ?? [];
 
   return (
-    <div className="app-shell">
-      <Sidebar />
-      <main className="main-content">
-        <div className="game-screen">
-          {/* Topbar */}
-          <div className="game-topbar">
-            <span className="game-topbar-title">
-              {gameMode === 'pvai' ? '🤖 Chơi với máy tính' : '👥 Chơi 2 người'}
-            </span>
-            <div className="game-topbar-right">
+    <div className="shell">
+      <SB />
+      <main className="main">
+        <div className="game-page">
+          <div className="topbar">
+            <span className="topbar-title">{mode === 'pvai' ? '🤖 Chơi với máy tính' : '👥 Chơi 2 người'}</span>
+            <div className="topbar-right">
               <button className="btn btn-white btn-sm"
                 onClick={() => api.getState(state?.gameId ?? '').then(() =>
                   window.open(`/api/game/${state?.gameId}/pgn`, '_blank')).catch(() => {})}
-                disabled={!state}>
-                💾 Lưu PGN
-              </button>
-              <button className="btn btn-white btn-sm" onClick={() => setScreen('home')}>
-                ← Trang chủ
-              </button>
+                disabled={!state}>💾 PGN</button>
+              <button className="btn btn-white btn-sm" onClick={() => setScreen('home')}>← Trang chủ</button>
             </div>
           </div>
 
           <div className="game-body">
-            {/* Board column */}
+            {/* Board col */}
             <div className="board-col">
-              {/* Black player */}
-              <div className={`player-strip${state?.currentTurn === 'black' && state?.status !== 'checkmate' ? ' active' : ''}${blackTime <= 30 && state?.currentTurn === 'black' ? ' urgent' : ''}`}>
-                <div className="ps-avatar black">將</div>
-                <div className="ps-name">⚫ ĐEN {gameMode === 'pvai' ? '' : ''}</div>
-                <div className="ps-captured">
-                  {blackCaptured.map((p, i) => <span key={i} className="ps-piece">{p.symbol}</span>)}
-                </div>
-                <div className={`ps-clock black-c${blackTime <= 30 && state?.currentTurn === 'black' ? ' urgent' : ''}`}>
-                  {fmt(blackTime)}
-                </div>
+              <div className={`pstrip${state?.currentTurn === 'black' && state?.status !== 'checkmate' ? ' on' : ''}${blackTime <= 30 && state?.currentTurn === 'black' ? ' urg' : ''}`}>
+                <div className="pstrip-av b">將</div>
+                <div className="pstrip-name">⚫ ĐEN</div>
+                <div className="pstrip-cap">{bc.map((p, i) => <span key={i} className="pstrip-pc">{p.symbol}</span>)}</div>
+                <div className={`pstrip-clk b${blackTime <= 30 && state?.currentTurn === 'black' ? ' urg' : ''}`}>{fmt(blackTime)}</div>
               </div>
 
-              {/* Board */}
               <div className="board-wrap">
-                {state && (
-                  <Board
-                    board={state.board}
-                    legalMoves={state.legalMoves}
-                    lastMove={state.lastMove}
-                    selected={selected}
-                    hintMove={hintMove}
-                    onCellClick={handleCellClick}
-                    disabled={isDisabled}
-                  />
-                )}
-                {loading && <div className="board-loading">🤖 AI đang suy nghĩ...</div>}
+                {state && <Board board={state.board} legalMoves={state.legalMoves} lastMove={state.lastMove}
+                  selected={selected} hintMove={hintMove} onCellClick={handleCellClick} disabled={disabled} />}
+                {loading && <div className="board-spin">🤖 AI đang suy nghĩ...</div>}
               </div>
 
-              {/* Red player */}
-              <div className={`player-strip${state?.currentTurn === 'red' && state?.status !== 'checkmate' ? ' active' : ''}${redTime <= 30 && state?.currentTurn === 'red' ? ' urgent' : ''}`}>
-                <div className="ps-avatar red">帥</div>
-                <div className="ps-name">🔴 ĐỎ {gameMode === 'pvai' ? '(Bạn)' : ''}</div>
-                <div className="ps-captured">
-                  {redCaptured.map((p, i) => <span key={i} className="ps-piece">{p.symbol}</span>)}
-                </div>
-                <div className={`ps-clock red-c${redTime <= 30 && state?.currentTurn === 'red' ? ' urgent' : ''}`}>
-                  {fmt(redTime)}
-                </div>
+              <div className={`pstrip${state?.currentTurn === 'red' && state?.status !== 'checkmate' ? ' on' : ''}${redTime <= 30 && state?.currentTurn === 'red' ? ' urg' : ''}`}>
+                <div className="pstrip-av r">帥</div>
+                <div className="pstrip-name">🔴 ĐỎ {mode === 'pvai' ? '(Bạn)' : ''}</div>
+                <div className="pstrip-cap">{rc.map((p, i) => <span key={i} className="pstrip-pc">{p.symbol}</span>)}</div>
+                <div className={`pstrip-clk r${redTime <= 30 && state?.currentTurn === 'red' ? ' urg' : ''}`}>{fmt(redTime)}</div>
               </div>
             </div>
 
             {/* Right panel */}
-            <div className="game-panel">
-              {/* Status */}
-              <div className={`status-badge ${statusCls}`}>{statusText()}</div>
+            <div className="gpanel">
+              <div className={`sbadge ${stCls}`}>{stText()}</div>
 
-              {/* Controls */}
-              <div className="panel-card">
+              <div className="pcard">
                 <h4>Điều khiển</h4>
-                <div className="ctrl-grid">
+                <div className="cgrid">
                   <button className="btn btn-white" onClick={undo} disabled={loading || !state}>↩ Hoàn tác</button>
-                  <button className="btn btn-red"   onClick={requestAiMove} disabled={isDisabled}>🤖 AI đi</button>
-                  <button className="btn btn-white" onClick={requestHint}
-                    disabled={loading || hinting || !state || state.status === 'checkmate'}>
+                  <button className="btn btn-red"   onClick={requestAiMove} disabled={disabled}>🤖 AI đi</button>
+                  <button className="btn btn-white" onClick={requestHint} disabled={loading || hinting || !state || state.status === 'checkmate'}>
                     {hinting ? '💭...' : '💡 Gợi ý'}
                   </button>
-                  <button className="btn btn-red"   onClick={() => newGame(gameMode, timeVal)} disabled={loading}>
-                    🔄 Ván mới
-                  </button>
+                  <button className="btn btn-red"   onClick={() => newGame(mode, tv)} disabled={loading}>🔄 Ván mới</button>
                 </div>
               </div>
 
-              {/* AI depth */}
-              {gameMode === 'pvai' && (
-                <div className="panel-card">
+              {mode === 'pvai' && (
+                <div className="pcard">
                   <h4>Độ khó AI</h4>
-                  <div className="depth-row">
+                  <div className="drow">
                     <label>Độ sâu: <strong>{aiDepth}</strong></label>
-                    <span style={{ fontSize: '.72rem', color: 'var(--muted)' }}>
-                      {aiDepth <= 3 ? 'Dễ' : aiDepth <= 5 ? 'TB' : 'Khó'}
-                    </span>
+                    <span style={{ fontSize: '.7rem', color: 'var(--muted)' }}>{aiDepth <= 3 ? 'Dễ' : aiDepth <= 5 ? 'TB' : 'Khó'}</span>
                   </div>
-                  <input type="range" min={1} max={7} value={aiDepth}
-                    onChange={e => setAiDepth(+e.target.value)} />
-                  {nodesInfo != null && <div className="ai-nodes">🔍 {nodesInfo.toLocaleString()} nút</div>}
+                  <input type="range" min={1} max={7} value={aiDepth} onChange={e => setAiDepth(+e.target.value)} />
+                  {nodesInfo != null && <div className="ai-info">🔍 {nodesInfo.toLocaleString()} nút</div>}
                 </div>
               )}
 
-              {/* Move history */}
-              <div className="panel-card" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <h4 style={{ cursor: 'pointer' }} onClick={() => setShowHist(v => !v)}>
-                  📋 Lịch sử {state ? `(${state.moveCount})` : ''} {showHist ? '▲' : '▼'}
-                </h4>
-                {showHist && state && (
-                  <div className="history-scroll">
-                    <MoveHistory history={state.moveHistory} />
-                  </div>
-                )}
+              <div className="pcard" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <h4 onClick={() => setShowH(v => !v)}>📋 Lịch sử {state ? `(${state.moveCount})` : ''} {showH ? '▲' : '▼'}</h4>
+                {showH && state && <div className="hscroll"><MoveHistory history={state.moveHistory} /></div>}
               </div>
 
-              {error && (
-                <div style={{ fontSize: '.78rem', color: 'var(--red)', padding: '8px 12px', background: '#fdf0ee', borderRadius: 8 }}>
-                  ⚠ {error}
-                </div>
-              )}
+              {error && <div style={{ fontSize: '.76rem', color: 'var(--red)', padding: '8px 12px', background: '#fdf0ee', borderRadius: 8 }}>⚠ {error}</div>}
 
-              {/* Guide */}
-              <div className="panel-card">
+              <div className="pcard">
                 <h4>Chú thích</h4>
-                <div style={{ fontSize: '.72rem', color: 'var(--muted)', lineHeight: 1.9 }}>
+                <div style={{ fontSize: '.7rem', color: 'var(--muted)', lineHeight: 2 }}>
                   🟢 Ô có thể đi &nbsp;|&nbsp; 🔴 Ăn quân<br />
                   🟡 Nước vừa đi &nbsp;|&nbsp; 🟣 Gợi ý AI
                 </div>
@@ -385,7 +301,6 @@ export default function App() {
           </div>
         </div>
       </main>
-
       {showAuth && <AuthModal onClose={u => { setShowAuth(false); if (u) setUser(u); }} />}
       {showLb   && <Leaderboard onClose={() => setShowLb(false)} />}
     </div>
