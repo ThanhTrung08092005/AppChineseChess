@@ -23,7 +23,7 @@ export default function MoveHistory({ history }: Props) {
   }, [history.length]);
 
   if (history.length === 0)
-    return <div className="move-history empty">Chưa có nước đi nào</div>;
+    return <div style={{padding:12,color:'var(--muted)',fontSize:'.78rem',textAlign:'center'}}>Chưa có nước đi</div>;
 
   // Ghép từng cặp (đỏ + đen) thành 1 hàng
   const pairs: [MoveHistoryDto, MoveHistoryDto | null][] = [];
@@ -31,17 +31,17 @@ export default function MoveHistory({ history }: Props) {
     pairs.push([history[i], history[i + 1] ?? null]);
 
   return (
-    <div className="move-history">
-      <table>
+    <>
+      <table className="history-table">
         <thead>
           <tr><th>#</th><th>🔴 Đỏ</th><th>⚫ Đen</th></tr>
         </thead>
         <tbody>
           {pairs.map(([red, black], i) => (
-            <tr key={i} className={i % 2 === 0 ? 'row-even' : ''}>
-              <td className="move-num">{i + 1}</td>
-              <td className={`move-cell red ${red.isCheck ? 'check' : ''}`}>{moveLabel(red)}</td>
-              <td className={`move-cell black ${black?.isCheck ? 'check' : ''}`}>
+            <tr key={i}>
+              <td className="ht-num">{i + 1}</td>
+              <td className={`ht-red ${red.isCheck ? 'ht-check' : ''}`}>{moveLabel(red)}</td>
+              <td className={`ht-black ${black?.isCheck ? 'ht-check' : ''}`}>
                 {black ? moveLabel(black) : ''}
               </td>
             </tr>
@@ -49,6 +49,6 @@ export default function MoveHistory({ history }: Props) {
         </tbody>
       </table>
       <div ref={bottomRef} />
-    </div>
+    </>
   );
 }
