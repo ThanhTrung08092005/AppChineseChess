@@ -41,7 +41,15 @@ namespace CoTuongAPI.Hubs
 
             await Groups.AddToGroupAsync(Context.ConnectionId, roomId);
 
-            // Nếu là khách mới
+            // Host vào phòng lần đầu — chờ khách
+            if (room.HostId == playerId && !room.IsFull)
+            {
+                // Thông báo cho host biết màu của mình là đỏ
+                await Clients.Caller.SendAsync("ColorAssigned", new { color = "red", waiting = true });
+                return;
+            }
+
+            // Khách vào phòng lần đầu
             if (!room.IsFull && room.HostId != playerId)
             {
                 room.GuestId   = playerId;
@@ -55,20 +63,41 @@ namespace CoTuongAPI.Hubs
                 session.BlackTimeLeft = room.TimePerSide;
                 room.GameId = session.Id;
 
-                await Clients.Group(roomId).SendAsync("PlayerJoined", new
+                // Gửi cho khách biết màu đen
+                await Clients.Caller.SendAsync("ColorAssigned", new
                 {
-                    playerId, playerName,
-                    color    = "black",
-                    gameId   = session.Id,
+                    color   = "black",
+                    waiting = false,
+                    gameId  = session.Id,
                     gameState = session.ToDto()
                 });
+
+                // Gửi cho host biết game đã bắt đầu
+                await Clients.OthersInGroup(roomId).SendAsync("GameStarted", new
+                {
+                    color   = "red",
+                    gameId  = session.Id,
+                    gameState = session.ToDto(),
+                    guestName = playerName
+                });
+                return;
             }
-            else
+
+            // Reconnect — gửi lại trạng thái hiện tại
+            if (!string.IsNullOrEmpty(room.GameId))
             {
-                // Host reconnect hoặc guest reconnect
                 var session = _games.GetSession(room.GameId);
                 if (session != null)
-                    await Clients.Caller.SendAsync("RoomUpdated", new { room, gameState = session.ToDto() });
+                {
+                    var myColor = room.HostId == playerId ? "red" : "black";
+                    await Clients.Caller.SendAsync("ColorAssigned", new
+                    {
+                        color   = myColor,
+                        waiting = false,
+                        gameId  = room.GameId,
+                        gameState = session.ToDto()
+                    });
+                }
             }
         }
 

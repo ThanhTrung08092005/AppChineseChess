@@ -14,7 +14,7 @@ interface Props {
 }
 
 export default function OnlineGame({ roomId, playerId, playerName, onLeave }: Props) {
-  const { state, connected, error, chat, myColor, selected, handleCellClick, sendChat }
+  const { state, connected, waiting, error, chat, myColor, selected, handleCellClick, sendChat }
     = useOnlineGame(roomId, playerId, playerName);
   const { redTime, blackTime } = useClock(state);
   const [chatInput, setChatInput] = useState('');
@@ -46,7 +46,17 @@ export default function OnlineGame({ roomId, playerId, playerName, onLeave }: Pr
           <Clock time={blackTime} active={state?.currentTurn === 'black' && state?.status !== 'checkmate'} color="black" label="⚫ ĐEN" />
           {state && <CapturedPieces pieces={state.capturedBlack} label="Bị ăn" />}
           <div className="board-wrap">
-            {state ? (
+            {waiting ? (
+              <div className="waiting-msg">
+                <div>
+                  <div style={{ fontSize: '2rem', marginBottom: 8 }}>⏳</div>
+                  <div>Đang chờ người chơi thứ 2...</div>
+                  <div style={{ fontSize: '0.85rem', marginTop: 8, color: '#888' }}>
+                    Mã phòng: <strong style={{ color: '#F39C12' }}>{roomId}</strong>
+                  </div>
+                </div>
+              </div>
+            ) : state ? (
               <Board
                 board={state.board}
                 legalMoves={state.legalMoves}
@@ -57,7 +67,9 @@ export default function OnlineGame({ roomId, playerId, playerName, onLeave }: Pr
                 disabled={isDisabled}
               />
             ) : (
-              <div className="waiting-msg">⏳ Đang chờ người chơi thứ 2...</div>
+              <div className="waiting-msg">
+                <div>Đang kết nối...</div>
+              </div>
             )}
           </div>
           {state && <CapturedPieces pieces={state.capturedRed} label="Bị ăn" />}

@@ -10,6 +10,7 @@ export interface ChatMsg { playerName: string; message: string; time: string; }
 export function useOnlineGame(roomId: string, playerId: string, playerName: string) {
   const [state,     setState]     = useState<GameStateDto | null>(null);
   const [connected, setConnected] = useState(false);
+  const [waiting,   setWaiting]   = useState(true);  // chờ người chơi thứ 2
   const [error,     setError]     = useState<string | null>(null);
   const [chat,      setChat]      = useState<ChatMsg[]>([]);
   const [myColor,   setMyColor]   = useState<'red' | 'black' | null>(null);
@@ -27,6 +28,18 @@ export function useOnlineGame(roomId: string, playerId: string, playerName: stri
       .withAutomaticReconnect()
       .build();
 
+    hub.on('ColorAssigned', (data: any) => {
+      setMyColor(data.color);
+      if (data.gameState) { setState(data.gameState); setWaiting(false); }
+      else setWaiting(data.waiting ?? true);
+    });
+
+    hub.on('GameStarted', (data: any) => {
+      setMyColor(data.color);
+      setWaiting(false);
+      if (data.gameState) setState(data.gameState);
+    });
+
     hub.on('GameStateUpdated', (s: GameStateDto) => {
       if (s.status === 'checkmate' && prevStatusRef.current !== 'checkmate')
         s.winner === (myColor === 'red' ? 'red' : 'black') ? sound.playWin() : sound.playLose();
@@ -36,14 +49,8 @@ export function useOnlineGame(roomId: string, playerId: string, playerName: stri
       setState(s);
     });
 
-    hub.on('PlayerJoined', (data: any) => {
-      setMyColor(data.color === 'black' ? 'black' : 'red');
-      setState(data.gameState);
-    });
-
-    hub.on('RoomUpdated', (data: any) => {
-      setState(data.gameState);
-    });
+    hub.on('PlayerJoined', (_data: any) => { /* replaced by ColorAssigned + GameStarted */ });
+    hub.on('RoomUpdated',  (_data: any) => { /* replaced by ColorAssigned */ });
 
     hub.on('ChatMessage', (msg: ChatMsg) => {
       setChat(prev => [...prev.slice(-49), msg]);
@@ -103,5 +110,5 @@ export function useOnlineGame(roomId: string, playerId: string, playerName: stri
     }
   }, [state, selected, myColor, makeMove]);
 
-  return { state, connected, error, chat, myColor, selected, handleCellClick, sendChat };
+  return { state, connected, waiting, error, chat, myColor, selected, handleCellClick, sendChat };
 }
