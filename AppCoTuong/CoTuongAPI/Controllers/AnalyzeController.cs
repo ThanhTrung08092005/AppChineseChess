@@ -12,14 +12,14 @@ namespace CoTuongAPI.Controllers
         public AnalyzeController(PikafishService pikafish) => _pikafish = pikafish;
 
         /// POST /api/analyze
-        /// Body: { "fen": "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR w - - 0 1", "timeMs": 2000 }
+        /// Body: { "fen": "...", "timeMs": 2000 }
+        /// Response: { bestMove, lines: [{depth, score, isMate, mateIn, nodes, nps, time, pvLine}], ... }
         [HttpPost]
         public async Task<IActionResult> Analyze([FromBody] AnalyzeRequest req)
         {
             if (string.IsNullOrWhiteSpace(req.Fen))
                 return BadRequest(new { error = "FEN is required" });
 
-            // Parse FEN → Board
             Board? board;
             try { board = FenConverter.FromFen(req.Fen); }
             catch (Exception ex) { return BadRequest(new { error = $"Invalid FEN: {ex.Message}" }); }
@@ -36,7 +36,7 @@ namespace CoTuongAPI.Controllers
 
             return Ok(new
             {
-                bestMove     = result.BestMoveUcci,
+                bestMove      = result.BestMoveUcci,
                 bestMoveCoord = result.BestMove == null ? null : new
                 {
                     fromRow = result.BestMove.FromRow,
@@ -52,6 +52,18 @@ namespace CoTuongAPI.Controllers
                 nps      = result.Nps,
                 pvLine   = result.PvLine,
                 engine   = "pikafish",
+                // Tất cả các dòng info theo depth (giống mẫu)
+                lines    = result.Lines.OrderByDescending(l => l.Depth).Select(l => new
+                {
+                    depth    = l.Depth,
+                    score    = l.Score,
+                    isMate   = l.IsMate,
+                    mateIn   = l.MateIn,
+                    nodes    = l.Nodes,
+                    nps      = l.Nps,
+                    timeMs   = l.TimeMs,
+                    pvLine   = l.PvLine,
+                }),
             });
         }
     }

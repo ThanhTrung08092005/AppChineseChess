@@ -154,37 +154,55 @@ namespace CoTuongAPI.Services
 
         private static void ParseInfoLine(string line, AnalysisResult r)
         {
-            // info depth 10 seldepth 14 multipv 1 score cp 45 nodes 12345 nps 500000 time 100 pv a0b2 ...
             var tokens = line.Split(' ');
+            var info   = new InfoLine();
+            bool hasDepth = false;
+
             for (int i = 0; i < tokens.Length - 1; i++)
             {
                 switch (tokens[i])
                 {
                     case "depth":
-                        if (int.TryParse(tokens[i + 1], out int d)) r.Depth = d;
+                        if (int.TryParse(tokens[i+1], out int d)) { info.Depth = d; r.Depth = d; hasDepth = true; }
                         break;
                     case "cp":
-                        if (int.TryParse(tokens[i + 1], out int cp)) r.Score = cp;
+                        if (int.TryParse(tokens[i+1], out int cp)) { info.Score = cp; r.Score = cp; info.IsMate = false; }
                         break;
                     case "mate":
-                        if (int.TryParse(tokens[i + 1], out int m))
+                        if (int.TryParse(tokens[i+1], out int m))
                         {
-                            r.Score    = m > 0 ? 100000 : -100000;
-                            r.MateIn   = m;
-                            r.IsMate   = true;
+                            info.Score = m > 0 ? 100000 : -100000;
+                            info.IsMate = true; info.MateIn = m;
+                            r.Score = info.Score; r.IsMate = true; r.MateIn = m;
                         }
                         break;
                     case "nodes":
-                        if (long.TryParse(tokens[i + 1], out long n)) r.Nodes = n;
+                        if (long.TryParse(tokens[i+1], out long n)) { info.Nodes = n; r.Nodes = n; }
                         break;
                     case "nps":
-                        if (long.TryParse(tokens[i + 1], out long nps)) r.Nps = nps;
+                        if (long.TryParse(tokens[i+1], out long nps)) { info.Nps = nps; r.Nps = nps; }
+                        break;
+                    case "time":
+                        if (int.TryParse(tokens[i+1], out int t)) info.TimeMs = t;
                         break;
                     case "pv":
-                        // Lấy toàn bộ PV line
-                        r.PvLine = string.Join(" ", tokens[(i + 1)..]);
+                        info.PvLine = string.Join(" ", tokens[(i+1)..]);
+                        r.PvLine    = info.PvLine;
                         break;
                 }
+            }
+
+            if (hasDepth)
+            {
+                var existing = r.Lines.FirstOrDefault(l => l.Depth == info.Depth);
+                if (existing != null)
+                {
+                    existing.Score  = info.Score;  existing.IsMate = info.IsMate;
+                    existing.MateIn = info.MateIn; existing.Nodes  = info.Nodes;
+                    existing.Nps    = info.Nps;    existing.TimeMs = info.TimeMs;
+                    existing.PvLine = info.PvLine;
+                }
+                else r.Lines.Add(info);
             }
         }
 
@@ -210,12 +228,25 @@ namespace CoTuongAPI.Services
     {
         public Move?  BestMove     { get; set; }
         public string BestMoveUcci { get; set; } = "";
-        public int    Score        { get; set; }   // centipawns (cp), dương = lợi Đỏ
+        public int    Score        { get; set; }
         public int    Depth        { get; set; }
         public bool   IsMate       { get; set; }
         public int    MateIn       { get; set; }
         public long   Nodes        { get; set; }
         public long   Nps          { get; set; }
         public string PvLine       { get; set; } = "";
+        public List<InfoLine> Lines { get; set; } = new();
+    }
+
+    public class InfoLine
+    {
+        public int    Depth  { get; set; }
+        public int    Score  { get; set; }
+        public bool   IsMate { get; set; }
+        public int    MateIn { get; set; }
+        public long   Nodes  { get; set; }
+        public long   Nps    { get; set; }
+        public int    TimeMs { get; set; }
+        public string PvLine { get; set; } = "";
     }
 }
