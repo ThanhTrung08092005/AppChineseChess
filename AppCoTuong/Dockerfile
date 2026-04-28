@@ -1,27 +1,22 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-# Copy toàn bộ CoTuongAPI (bao gồm wwwroot đã build sẵn)
-COPY CoTuongAPI/ ./CoTuongAPI/
+# Copy toàn bộ context vào /src
+COPY . .
 
-# Verify wwwroot có trong source - dùng find thay vì ls
-RUN find /src/CoTuongAPI/wwwroot -type f 2>/dev/null || echo "wwwroot NOT FOUND in source"
+# Debug: xem toàn bộ cấu trúc
+RUN find /src -name "index.html" 2>/dev/null || echo "No index.html found"
+RUN find /src -name "*.csproj" 2>/dev/null
 
 RUN dotnet restore CoTuongAPI/CoTuongAPI.csproj
 RUN dotnet publish CoTuongAPI/CoTuongAPI.csproj -c Release -o /publish
 
-# Force copy wwwroot vào publish
-RUN rm -rf /publish/wwwroot && cp -r /src/CoTuongAPI/wwwroot /publish/wwwroot
-
-# Verify
-RUN find /publish/wwwroot -type f
+# Copy wwwroot
+RUN cp -r CoTuongAPI/wwwroot /publish/wwwroot
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 COPY --from=build /publish ./
-
-# Verify trong runtime image
-RUN echo "=== RUNTIME wwwroot ===" && ls /app/wwwroot
 
 ENV ASPNETCORE_ENVIRONMENT=Production
 EXPOSE 8080
