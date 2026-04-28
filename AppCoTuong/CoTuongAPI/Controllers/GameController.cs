@@ -3,7 +3,6 @@ using CoTuongAPI.AI;
 using CoTuongAPI.Engine;
 using CoTuongAPI.Models;
 using CoTuongAPI.Services;
-
 namespace CoTuongAPI.Controllers
 {
     [ApiController]
@@ -135,6 +134,16 @@ namespace CoTuongAPI.Controllers
         {
             _manager.RemoveSession(id);
             return NoContent();
+        }
+
+        // GET /api/game/{id}/pgn — export ván cờ
+        [HttpGet("{id}/pgn")]
+        public IActionResult ExportPgn(string id)
+        {
+            var session = _manager.GetSession(id);
+            if (session == null) return NotFound(new { error = "Game not found" });
+            var pgn = PgnService.ExportPgn(session);
+            return Content(pgn, "text/plain");
         }
     }
 }

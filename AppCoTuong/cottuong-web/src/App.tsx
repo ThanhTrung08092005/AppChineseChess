@@ -3,11 +3,26 @@ import Board from './components/Board';
 import Clock from './components/Clock';
 import MoveHistory from './components/MoveHistory';
 import CapturedPieces from './components/CapturedPieces';
+import AuthModal from './components/AuthModal';
+import Leaderboard from './components/Leaderboard';
+import RoomLobby from './components/RoomLobby';
+import OnlineGame from './components/OnlineGame';
 import { useGame } from './hooks/useGame';
 import { useClock } from './hooks/useClock';
+import { api } from './api/gameApi';
+import type { UserInfo } from './api/authApi';
 import './App.css';
 
+type Screen = 'menu' | 'local' | 'online';
+
 export default function App() {
+  const [screen, setScreen] = useState<Screen>('menu');
+  const [user,   setUser]   = useState<UserInfo | null>(null);
+  const [showAuth, setShowAuth] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showLobby, setShowLobby] = useState(false);
+  const [onlineRoomId, setOnlineRoomId] = useState('');
+
   const {
     state, selected, loading, hinting, error,
     aiDepth, setAiDepth, nodesInfo, hintMove,
@@ -16,10 +31,113 @@ export default function App() {
 
   const { redTime, blackTime } = useClock(state);
   const [showHistory, setShowHistory] = useState(false);
-  const [timeOption, setTimeOption]   = useState(600); // giây
+  const [timeOption, setTimeOption]   = useState(600);
 
-  useEffect(() => { newGame('pvai', timeOption); }, []);
+  // Load user từ localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('ct_user');
+    if (saved) setUser(JSON.parse(saved));
+  }, []);
 
+  const startLocal = (mode: 'pvai' | 'pvp') => {
+    setScreen('local');
+    newGame(mode, timeOption);
+  };
+
+  const startOnline = () => {
+    if (!user) { setShowAuth(true); return; }
+    setShowLobby(true);
+  };
+
+  const joinRoom = (roomId: string) => {
+    setOnlineRoomId(roomId);
+    setShowLobby(false);
+    setScreen('online');
+  };
+
+  const leaveOnline = () => {
+    setOnlineRoomId('');
+    setScreen('menu');
+  };
+
+  const exportPgn = () => {
+    if (!state) return;
+    api.getState(state.gameId)
+      .then(() => window.open(`/api/game/${state.gameId}/pgn`, '_blank'))
+      .catch(console.error);
+  };
+
+  // ── Menu Screen ────────────────────────────────────────────────────────────
+  if (screen === 'menu') {
+    return (
+      <div className="app menu-screen">
+        <div className="menu-container">
+          <h1 className="menu-title">象棋 · Cờ Tướng</h1>
+          <p className="menu-subtitle">Chinese Chess</p>
+
+          <div className="menu-buttons">
+            <button className="menu-btn btn-green" onClick={() => startLocal('pvai')}>
+              <span className="menu-icon">🎮</span>
+              <span>Chơi với AI</span>
+            </button>
+            <button className="menu-btn btn-blue" onClick={() => startLocal('pvp')}>
+              <span className="menu-icon">👥</span>
+              <span>Chơi 2 người (cùng máy)</span>
+            </button>
+            <button className="menu-btn btn-teal" onClick={startOnline}>
+              <span className="menu-icon">🌐</span>
+              <span>Chơi Online</span>
+            </button>
+            <button className="menu-btn btn-purple" onClick={() => setShowLeaderboard(true)}>
+              <span className="menu-icon">🏆</span>
+              <span>Bảng xếp hạng</span>
+            </button>
+          </div>
+
+          {/* Time selector */}
+          <div className="menu-time">
+            <label>Thời gian mỗi bên:</label>
+            <select className="time-select" value={timeOption} onChange={e => setTimeOption(+e.target.value)}>
+              <option value={180}>3 phút</option>
+              <option value={300}>5 phút</option>
+              <option value={600}>10 phút</option>
+              <option value={900}>15 phút</option>
+              <option value={9999}>Không giới hạn</option>
+            </select>
+          </div>
+
+          {/* User info */}
+          <div className="menu-user">
+            {user ? (
+              <span>👤 {user.username} ({user.wins}W-{user.losses}L)</span>
+            ) : (
+              <button className="btn btn-orange" onClick={() => setShowAuth(true)}>Đăng nhập</button>
+            )}
+          </div>
+        </div>
+
+        {showAuth && <AuthModal onClose={u => { setShowAuth(false); if (u) setUser(u); }} />}
+        {showLeaderboard && <Leaderboard onClose={() => setShowLeaderboard(false)} />}
+      </div>
+    );
+  }
+
+  // ── Online Screen ──────────────────────────────────────────────────────────
+  if (screen === 'online' && onlineRoomId) {
+    return (
+      <>
+        <OnlineGame
+          roomId={onlineRoomId}
+          playerId={user?.id ?? 'guest'}
+          playerName={user?.username ?? 'Khách'}
+          onLeave={leaveOnline}
+        />
+        {showLobby && <RoomLobby playerId={user?.id ?? 'guest'} playerName={user?.username ?? 'Khách'} onJoin={joinRoom} onClose={() => setShowLobby(false)} />}
+      </>
+    );
+  }
+
+  // ── Local Game Screen ──────────────────────────────────────────────────────
   const statusText = () => {
     if (!state) return 'Đang tải...';
     if (state.status === 'checkmate')
@@ -39,39 +157,18 @@ export default function App() {
 
   return (
     <div className="app">
-      {/* ── Header ── */}
       <header className="header">
         <h1>象棋 · Cờ Tướng</h1>
         <div className="header-right">
-          <div className="mode-btns">
-            <button onClick={() => newGame('pvai', timeOption)} className="btn btn-green">🎮 vs AI</button>
-            <button onClick={() => newGame('pvp',  timeOption)} className="btn btn-blue">👥 vs Người</button>
-          </div>
-          <select
-            className="time-select"
-            value={timeOption}
-            onChange={e => setTimeOption(+e.target.value)}
-          >
-            <option value={180}>3 phút</option>
-            <option value={300}>5 phút</option>
-            <option value={600}>10 phút</option>
-            <option value={900}>15 phút</option>
-            <option value={9999}>Không giới hạn</option>
-          </select>
+          <button className="btn btn-purple" onClick={() => setScreen('menu')}>← Menu</button>
+          <button className="btn btn-orange" onClick={exportPgn} disabled={!state}>💾 Lưu PGN</button>
         </div>
       </header>
 
       <div className="main">
-        {/* ── Cột trái: đồng hồ + bàn cờ + quân bị ăn ── */}
         <div className="board-col">
-
-          {/* Đồng hồ Đen (trên) */}
           <Clock time={blackTime} active={state?.currentTurn === 'black' && state?.status !== 'checkmate'} color="black" label="⚫ ĐEN" />
-
-          {/* Quân đen bị ăn */}
           {state && <CapturedPieces pieces={state.capturedBlack} label="Bị ăn" />}
-
-          {/* Bàn cờ */}
           <div className="board-wrap">
             {state && (
               <Board
@@ -86,21 +183,13 @@ export default function App() {
             )}
             {loading && <div className="loading-overlay">🤖 AI đang suy nghĩ...</div>}
           </div>
-
-          {/* Quân đỏ bị ăn */}
           {state && <CapturedPieces pieces={state.capturedRed} label="Bị ăn" />}
-
-          {/* Đồng hồ Đỏ (dưới) */}
           <Clock time={redTime} active={state?.currentTurn === 'red' && state?.status !== 'checkmate'} color="red" label="🔴 ĐỎ" />
         </div>
 
-        {/* ── Sidebar ── */}
         <aside className="sidebar">
-
-          {/* Trạng thái */}
           <div className={`status-box ${statusClass}`}>{statusText()}</div>
 
-          {/* Điều khiển chính */}
           <div className="controls">
             <button onClick={undo}          className="btn btn-purple" disabled={loading || !state}>↩ Hoàn tác</button>
             <button onClick={requestAiMove} className="btn btn-teal"   disabled={isDisabled}>🤖 AI đi</button>
@@ -109,39 +198,28 @@ export default function App() {
             </button>
           </div>
 
-          {/* Độ sâu AI */}
           <div className="depth-control">
             <label>Độ sâu AI: <strong>{aiDepth}</strong>
-              <span className="depth-hint"> ({aiDepth <= 3 ? 'Dễ' : aiDepth <= 5 ? 'Trung bình' : 'Khó'})</span>
+              <span className="depth-hint"> ({aiDepth <= 3 ? 'Dễ' : aiDepth <= 5 ? 'TB' : 'Khó'})</span>
             </label>
             <input type="range" min={1} max={7} value={aiDepth} onChange={e => setAiDepth(+e.target.value)} />
             <div className="depth-labels"><span>1</span><span>7</span></div>
           </div>
 
-          {/* Thông tin AI */}
-          {nodesInfo != null && (
-            <div className="ai-info">🔍 {nodesInfo.toLocaleString()} nút đã duyệt</div>
-          )}
+          {nodesInfo != null && <div className="ai-info">🔍 {nodesInfo.toLocaleString()} nút</div>}
 
-          {/* Lịch sử nước đi */}
           <div className="history-section">
-            <button
-              className="history-toggle"
-              onClick={() => setShowHistory(v => !v)}
-            >
+            <button className="history-toggle" onClick={() => setShowHistory(v => !v)}>
               📋 Lịch sử {state ? `(${state.moveCount})` : ''} {showHistory ? '▲' : '▼'}
             </button>
             {showHistory && state && <MoveHistory history={state.moveHistory} />}
           </div>
 
-          {/* Lỗi */}
           {error && <div className="error-box">⚠ {error}</div>}
 
-          {/* Hướng dẫn */}
           <div className="guide">
             <h3>Hướng dẫn</h3>
             <ul>
-              <li>Click quân để chọn</li>
               <li>Chấm xanh = ô có thể đi</li>
               <li>Vòng đỏ = ô có thể ăn quân</li>
               <li>Vàng = nước đi cuối</li>
@@ -150,6 +228,8 @@ export default function App() {
           </div>
         </aside>
       </div>
+
+      {showLobby && <RoomLobby playerId={user?.id ?? 'guest'} playerName={user?.username ?? 'Khách'} onJoin={joinRoom} onClose={() => setShowLobby(false)} />}
     </div>
   );
 }

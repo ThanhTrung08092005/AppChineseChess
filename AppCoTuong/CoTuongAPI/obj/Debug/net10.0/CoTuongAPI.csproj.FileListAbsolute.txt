@@ -33,3 +33,13 @@ D:\MyProject\AppCoTuong\CoTuongAPI\obj\Debug\net10.0\compressed\jez7rkej63-{0}-z
 D:\MyProject\AppCoTuong\CoTuongAPI\obj\Debug\net10.0\compressed\7s7ztthmft-{0}-180dmtdpho-180dmtdpho.gz
 D:\MyProject\AppCoTuong\CoTuongAPI\obj\Debug\net10.0\compressed\z4b8r6022a-{0}-g3h7a9wx5y-g3h7a9wx5y.gz
 D:\MyProject\AppCoTuong\CoTuongAPI\obj\Debug\net10.0\compressed\w23rvz5eub-{0}-rhozf9ynmf-rhozf9ynmf.gz
+D:\MyProject\AppCoTuong\CoTuongAPI\bin\Debug\net10.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll
+D:\MyProject\AppCoTuong\CoTuongAPI\bin\Debug\net10.0\Microsoft.IdentityModel.Abstractions.dll
+D:\MyProject\AppCoTuong\CoTuongAPI\bin\Debug\net10.0\Microsoft.IdentityModel.JsonWebTokens.dll
+D:\MyProject\AppCoTuong\CoTuongAPI\bin\Debug\net10.0\Microsoft.IdentityModel.Logging.dll
+D:\MyProject\AppCoTuong\CoTuongAPI\bin\Debug\net10.0\Microsoft.IdentityModel.Protocols.dll
+D:\MyProject\AppCoTuong\CoTuongAPI\bin\Debug\net10.0\Microsoft.IdentityModel.Protocols.OpenIdConnect.dll
+D:\MyProject\AppCoTuong\CoTuongAPI\bin\Debug\net10.0\Microsoft.IdentityModel.Tokens.dll
+D:\MyProject\AppCoTuong\CoTuongAPI\bin\Debug\net10.0\System.IdentityModel.Tokens.Jwt.dll
+D:\MyProject\AppCoTuong\CoTuongAPI\obj\Debug\net10.0\CoTuongAPI.csproj.AssemblyReference.cache
+D:\MyProject\AppCoTuong\CoTuongAPI\obj\Debug\net10.0\CoTuongAPI.csproj.Up2Date
