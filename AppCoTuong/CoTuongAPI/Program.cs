@@ -1,4 +1,5 @@
 using CoTuongAPI.Services;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,25 +16,42 @@ builder.Services.AddControllers()
 
 builder.Services.AddSingleton<GameManager>();
 
-// CORS — dev only (production: React được serve cùng origin)
 builder.Services.AddCors(opt => opt.AddDefaultPolicy(p =>
     p.WithOrigins(
         "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:5041",
-        "https://localhost:7157")
+        "http://localhost:8080",
+        "https://chinesechess.up.railway.app")
      .AllowAnyHeader()
      .AllowAnyMethod()));
 
 var app = builder.Build();
 
 app.UseCors();
+
+// ── Serve React static files ──────────────────────────────────────────────────
+// Thứ tự QUAN TRỌNG: static files trước controllers
+var wwwrootPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+if (Directory.Exists(wwwrootPath))
+{
+    app.UseDefaultFiles(new DefaultFilesOptions
+    {
+        FileProvider = new PhysicalFileProvider(wwwrootPath),
+        RequestPath  = ""
+    });
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(wwwrootPath),
+        RequestPath  = ""
+    });
+}
+
 app.UseAuthorization();
 app.MapControllers();
 
-// Serve React build từ wwwroot (production)
-app.UseDefaultFiles();
-app.UseStaticFiles();
-app.MapFallbackToFile("index.html");
+// Fallback về index.html cho React Router
+app.MapFallbackToFile("index.html", new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(wwwrootPath)
+});
 
 app.Run();
