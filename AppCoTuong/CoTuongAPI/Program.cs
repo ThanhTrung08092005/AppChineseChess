@@ -1,5 +1,4 @@
 using CoTuongAPI.Services;
-using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,41 +16,29 @@ builder.Services.AddControllers()
 builder.Services.AddSingleton<GameManager>();
 
 builder.Services.AddCors(opt => opt.AddDefaultPolicy(p =>
-    p.WithOrigins(
-        "http://localhost:3000",
-        "http://localhost:8080",
-        "https://chinesechess.up.railway.app")
-     .AllowAnyHeader()
-     .AllowAnyMethod()));
+    p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 
 var app = builder.Build();
 
+// Log để debug trên Railway
+var wwwroot = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+Console.WriteLine($"[STARTUP] ContentRootPath: {app.Environment.ContentRootPath}");
+Console.WriteLine($"[STARTUP] wwwroot path: {wwwroot}");
+Console.WriteLine($"[STARTUP] wwwroot exists: {Directory.Exists(wwwroot)}");
+if (Directory.Exists(wwwroot))
+{
+    foreach (var f in Directory.GetFiles(wwwroot))
+        Console.WriteLine($"[STARTUP] file: {f}");
+}
+
 app.UseCors();
 
-// ── Serve React static files ──────────────────────────────────────────────────
-// Thứ tự QUAN TRỌNG: static files trước controllers
-var wwwrootPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
-if (Directory.Exists(wwwrootPath))
-{
-    app.UseDefaultFiles(new DefaultFilesOptions
-    {
-        FileProvider = new PhysicalFileProvider(wwwrootPath),
-        RequestPath  = ""
-    });
-    app.UseStaticFiles(new StaticFileOptions
-    {
-        FileProvider = new PhysicalFileProvider(wwwrootPath),
-        RequestPath  = ""
-    });
-}
+// Static files TRƯỚC controllers
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 app.UseAuthorization();
 app.MapControllers();
-
-// Fallback về index.html cho React Router
-app.MapFallbackToFile("index.html", new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(wwwrootPath)
-});
+app.MapFallbackToFile("index.html");
 
 app.Run();
