@@ -1,22 +1,24 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+# ── Stage 1: Build React ─────────────────────────────────────────────────────
+FROM node:20-alpine AS frontend
+WORKDIR /frontend
+COPY cottuong-web/package*.json ./
+RUN npm ci --prefer-offline
+COPY cottuong-web/ ./
+RUN npm run build
+# Output: /frontend/dist
+
+# ── Stage 2: Build .NET ───────────────────────────────────────────────────────
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS backend
 WORKDIR /src
+COPY CoTuongAPI/ ./
+RUN dotnet restore CoTuongAPI.csproj
+RUN dotnet publish CoTuongAPI.csproj -c Release -o /publish
 
-# Copy toàn bộ context vào /src
-COPY . .
-
-# Debug: xem toàn bộ cấu trúc
-RUN find /src -name "index.html" 2>/dev/null || echo "No index.html found"
-RUN find /src -name "*.csproj" 2>/dev/null
-
-RUN dotnet restore CoTuongAPI/CoTuongAPI.csproj
-RUN dotnet publish CoTuongAPI/CoTuongAPI.csproj -c Release -o /publish
-
-# Copy wwwroot
-RUN cp -r CoTuongAPI/wwwroot /publish/wwwroot
-
+# ── Stage 3: Runtime ──────────────────────────────────────────────────────────
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
-COPY --from=build /publish ./
+COPY --from=backend /publish ./
+COPY --from=frontend /frontend/dist ./wwwroot
 
 ENV ASPNETCORE_ENVIRONMENT=Production
 EXPOSE 8080

@@ -14,8 +14,7 @@ export default defineConfig({
     }
   },
   build: {
-    // Build ra wwwroot để API serve (dùng khi build thủ công)
-    outDir: '../CoTuongAPI/wwwroot',
+    outDir: 'dist',
     emptyOutDir: true,
   }
 })
