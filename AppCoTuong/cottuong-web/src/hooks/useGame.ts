@@ -8,7 +8,7 @@ export function useGame() {
   const [selected, setSelected] = useState<[number, number] | null>(null);
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState<string | null>(null);
-  const [aiDepth,  setAiDepth]  = useState(5);
+  const [aiDepth,  setAiDepth]  = useState(6);
   const [nodesInfo, setNodesInfo] = useState<number | null>(null);
 
   const wrap = async (fn: () => Promise<void>) => {

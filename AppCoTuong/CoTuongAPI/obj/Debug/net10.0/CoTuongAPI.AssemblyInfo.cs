@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("CoTuongAPI")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7d7a29971ccf2a00c5708520ca2133d6fdedeac5")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7527510aa12ea719774c6e1e668c8f78209ef7c9")]
 [assembly: System.Reflection.AssemblyProductAttribute("CoTuongAPI")]
 [assembly: System.Reflection.AssemblyTitleAttribute("CoTuongAPI")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
