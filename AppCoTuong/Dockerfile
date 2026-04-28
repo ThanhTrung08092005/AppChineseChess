@@ -9,14 +9,14 @@ COPY CoTuongAPI/ ./CoTuongAPI/
 
 RUN dotnet publish CoTuongAPI/CoTuongAPI.csproj -c Release -o /publish
 
+# Kiểm tra wwwroot có trong publish không
+RUN ls /publish/wwwroot || echo "wwwroot missing from publish"
+
 # ── Runtime ───────────────────────────────────────────────────────────────────
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 
 COPY --from=build /publish ./
-
-# Đảm bảo wwwroot được copy (dotnet publish đã include nhưng copy thêm cho chắc)
-COPY --from=build /src/CoTuongAPI/wwwroot ./wwwroot
 
 ENV ASPNETCORE_ENVIRONMENT=Production
 EXPOSE 8080
