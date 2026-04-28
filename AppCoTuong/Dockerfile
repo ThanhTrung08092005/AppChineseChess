@@ -1,3 +1,4 @@
+# deploy: fa4cc9f - sidebar UI
 # ── Stage 1: Build React ─────────────────────────────────────────────────────
 FROM node:20-alpine AS frontend
 WORKDIR /frontend
