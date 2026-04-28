@@ -23,37 +23,37 @@ WORKDIR /pf
 
 RUN wget -q \
     "https://github.com/official-pikafish/Pikafish/releases/download/Pikafish-2026-01-02/Pikafish.2026-01-02.7z" \
-    -O pikafish.7z
+    -O pikafish.7z \
+ && 7z x pikafish.7z -o./extracted
 
-RUN 7z x pikafish.7z -o./extracted
-
-# Tìm binary linux x86-64 theo thứ tự ưu tiên avx2 > bmi2 > generic
+# Cấu trúc thực tế: ./extracted/Linux/pikafish-avx2, pikafish-bmi2, ...
+# Ưu tiên: avx2 > bmi2 > sse41-popcnt > avxvnni
 RUN set -e; \
-    BIN=$(find ./extracted -type f -name "*linux*x86-64*avx2*" | head -1); \
-    if [ -z "$BIN" ]; then \
-        BIN=$(find ./extracted -type f -name "*linux*x86-64*bmi2*" | head -1); \
-    fi; \
-    if [ -z "$BIN" ]; then \
-        BIN=$(find ./extracted -type f -name "*linux*x86-64*" | head -1); \
-    fi; \
-    if [ -z "$BIN" ]; then \
-        echo "ERROR: No Pikafish linux binary found!"; \
-        find ./extracted -type f; \
-        exit 1; \
-    fi; \
-    echo "Using binary: $BIN"; \
+    for VARIANT in avx2 bmi2 sse41-popcnt avxvnni avx512 vnni512; do \
+        BIN="./extracted/Linux/pikafish-${VARIANT}"; \
+        if [ -f "$BIN" ]; then \
+            echo "Found: $BIN"; \
+            cp "$BIN" /pikafish; \
+            chmod +x /pikafish; \
+            echo "Pikafish installed: $VARIANT"; \
+            exit 0; \
+        fi; \
+    done; \
+    echo "Fallback: any Linux binary"; \
+    BIN=$(find ./extracted/Linux -type f | head -1); \
+    if [ -z "$BIN" ]; then echo "ERROR: No Linux binary found"; exit 1; fi; \
     cp "$BIN" /pikafish; \
     chmod +x /pikafish; \
-    ls -la /pikafish
+    echo "Installed: $BIN"
 
 # ── Stage 4: Runtime ──────────────────────────────────────────────────────────
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 
-COPY --from=backend     /publish    ./
-COPY --from=pikafish-dl /pikafish   /usr/local/bin/pikafish
+COPY --from=backend     /publish         ./
+COPY --from=pikafish-dl /pikafish        /usr/local/bin/pikafish
 RUN rm -rf ./wwwroot
-COPY --from=frontend    /frontend/dist ./wwwroot
+COPY --from=frontend    /frontend/dist   ./wwwroot
 
 ENV ASPNETCORE_ENVIRONMENT=Production
 ENV PIKAFISH_PATH=/usr/local/bin/pikafish
