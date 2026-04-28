@@ -6,9 +6,4 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
-  <!-- Đảm bảo wwwroot được copy khi publish -->
-  <ItemGroup>
-    <Content Include="wwwroot\**" CopyToPublishDirectory="PreserveNewest" />
-  </ItemGroup>
-
 </Project>

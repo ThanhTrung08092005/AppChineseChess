@@ -8,7 +8,7 @@ export default defineConfig({
     proxy: {
       // Dev only: chuyển /api sang backend local
       '/api': {
-        target: 'http://localhost:5041',
+        target: 'http://localhost:8080',
         changeOrigin: true,
       }
     }
