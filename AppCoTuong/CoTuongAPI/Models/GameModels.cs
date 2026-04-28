@@ -51,6 +51,7 @@ namespace CoTuongAPI.Models
         public MoveDto?      Move          { get; set; }
         public GameStateDto? State         { get; set; }
         public int           NodesSearched { get; set; }
+        public string        Engine        { get; set; } = "minimax";
     }
 
     public class HintDto

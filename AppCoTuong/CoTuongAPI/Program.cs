@@ -15,6 +15,7 @@ builder.Services.AddControllers()
 builder.Services.AddSingleton<GameManager>();
 builder.Services.AddSingleton<AuthService>();
 builder.Services.AddSingleton<RoomManager>();
+builder.Services.AddSingleton<PikafishService>();
 
 // SignalR
 builder.Services.AddSignalR();
