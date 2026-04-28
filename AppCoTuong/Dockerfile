@@ -1,3 +1,4 @@
+# Build trigger: UI redesign - xiangqi.com style lobby
 # ── Stage 1: Build React ─────────────────────────────────────────────────────
 FROM node:20-alpine AS frontend
 WORKDIR /frontend
