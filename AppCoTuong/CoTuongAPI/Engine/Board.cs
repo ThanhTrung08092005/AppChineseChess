@@ -12,6 +12,16 @@ namespace CoTuongAPI.Engine
 
         private Board(bool _) { } // constructor nội bộ cho Clone
 
+        /// <summary>Constructor cho FenConverter — không setup vị trí ban đầu</summary>
+        public Board(bool skipSetup = false)
+        {
+            if (!skipSetup) SetupInitialPosition();
+        }
+
+        // ── Ghi quân (dùng cho FEN parser) ───────────────────────────────────
+        public void SetPiece(int row, int col, Piece? piece) => _grid[row, col] = piece;
+        public void SetTurn(PieceColor color) => CurrentTurn = color;
+
         // ── Setup ─────────────────────────────────────────────────────────────
         public void SetupInitialPosition()
         {

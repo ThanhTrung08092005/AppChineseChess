@@ -50,7 +50,57 @@ namespace CoTuongAPI.Services
             return $"{boardStr} {turn} - - 0 1";
         }
 
-        // ── UCCI move string → (fromRow, fromCol, toRow, toCol) ──────────────
+        // ── FEN → Board ───────────────────────────────────────────────────────
+        public static Board FromFen(string fen)
+        {
+            // FEN: "rnbakabnr/9/.../... w - - 0 1"
+            var parts    = fen.Trim().Split(' ');
+            var rows     = parts[0].Split('/');
+            var turn     = parts.Length > 1 ? parts[1] : "w";
+
+            if (rows.Length != Board.Rows)
+                throw new ArgumentException($"FEN must have {Board.Rows} rows, got {rows.Length}");
+
+            var board = new Board(skipSetup: true);
+
+            for (int r = 0; r < Board.Rows; r++)
+            {
+                int c = 0;
+                foreach (char ch in rows[r])
+                {
+                    if (char.IsDigit(ch))
+                    {
+                        c += ch - '0';
+                    }
+                    else
+                    {
+                        var piece = FenCharToPiece(ch);
+                        board.SetPiece(r, c, piece);
+                        c++;
+                    }
+                }
+            }
+
+            board.SetTurn(turn == "b" ? PieceColor.Black : PieceColor.Red);
+            return board;
+        }
+
+        private static Piece FenCharToPiece(char ch)
+        {
+            var color = char.IsUpper(ch) ? PieceColor.Red : PieceColor.Black;
+            var type  = char.ToLower(ch) switch
+            {
+                'k' => PieceType.General,
+                'a' => PieceType.Advisor,
+                'e' => PieceType.Elephant,
+                'h' => PieceType.Horse,
+                'r' => PieceType.Chariot,
+                'c' => PieceType.Cannon,
+                'p' => PieceType.Soldier,
+                _   => throw new ArgumentException($"Unknown FEN char: {ch}")
+            };
+            return new Piece(type, color);
+        }
         /// <summary>
         /// Parse nước đi UCCI dạng "a0b2" hoặc "h9g7".
         /// UCCI: cột a-i, hàng 0-9 (0=đáy Đỏ).

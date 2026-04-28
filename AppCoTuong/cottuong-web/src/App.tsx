@@ -5,13 +5,14 @@ import AuthModal from './components/AuthModal';
 import Leaderboard from './components/Leaderboard';
 import OnlineLobbyScreen from './components/OnlineLobbyScreen';
 import OnlineGame from './components/OnlineGame';
+import AnalysisPage from './components/AnalysisPage';
 import { useGame } from './hooks/useGame';
 import { useClock } from './hooks/useClock';
 import { api } from './api/gameApi';
 import type { UserInfo } from './api/authApi';
 import './App.css';
 
-type Screen = 'home' | 'local' | 'online' | 'online-game';
+type Screen = 'home' | 'local' | 'online' | 'online-game' | 'analysis';
 
 const TIMES = [
   { l: '1+0',  s: '1 phút',  v: 60   },
@@ -91,6 +92,13 @@ export default function App() {
           <span className="sb-item-chevron">›</span>
         </button>
         <div className="sb-divider" />
+        <button className={`sb-item${screen === 'analysis' ? ' active' : ''}`}
+          onClick={() => setScreen('analysis')}>
+          <span className="sb-item-icon">🔍</span>
+          <span className="sb-item-label">Phân tích</span>
+          <span className="sb-item-chevron">›</span>
+        </button>
+        <div className="sb-divider" />
         <button className="sb-item" onClick={() => setShowLb(true)}>
           <span className="sb-item-icon">🏆</span>
           <span className="sb-item-label">Bảng xếp hạng</span>
@@ -166,6 +174,15 @@ export default function App() {
               <span className="home-card-arrow">›</span>
             </button>
 
+            <button className="home-card" onClick={() => setScreen('analysis')}>
+              <div className="home-card-icon">🔍</div>
+              <div className="home-card-body">
+                <div className="home-card-title">Phân tích ván cờ</div>
+                <div className="home-card-desc">Phân tích thế cờ bằng Pikafish Engine</div>
+              </div>
+              <span className="home-card-arrow">›</span>
+            </button>
+
             <div className="home-time">
               <label>Thời gian:</label>
               {TIMES.map(t => (
@@ -206,6 +223,15 @@ export default function App() {
           onLeave={() => { setRoomId(''); setScreen('online'); }} />
       </main>
       {showAuth && <AuthModal onClose={u => { setShowAuth(false); if (u) setUser(u); }} />}
+    </div>
+  );
+
+  if (screen === 'analysis') return (
+    <div className="shell">
+      <SB />
+      <main className="main">
+        <AnalysisPage />
+      </main>
     </div>
   );
 
