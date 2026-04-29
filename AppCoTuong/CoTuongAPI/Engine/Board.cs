@@ -20,6 +20,10 @@ namespace CoTuongAPI.Engine
         public void SetPiece(int row, int col, Piece? piece) => _grid[row, col] = piece;
         public void SetTurn(PieceColor color) => CurrentTurn = color;
 
+        /// <summary>Đổi lượt mà không di chuyển quân — dùng cho Null Move Pruning</summary>
+        public void PassTurn() =>
+            CurrentTurn = CurrentTurn == PieceColor.Red ? PieceColor.Black : PieceColor.Red;
+
         // ── Setup ─────────────────────────────────────────────────────────────
         public void SetupInitialPosition()
         {
