@@ -14,7 +14,8 @@ interface AnalysisResult {
   lines: InfoLine[];
 }
 
-const START_FEN = 'rheakaehr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RHEAKAEHR w - - 0 1';
+// FEN chuẩn Pikafish/UCCI: r=Xe, n=Mã, b=Tượng, a=Sĩ, k=Tướng, c=Pháo, p=Tốt
+const START_FEN = 'rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR w - - 0 1';
 
 const FEN_MAP: Record<string, { color: 'red' | 'black'; symbol: string; type: string }> = {
   K: { color: 'red',   symbol: '帥', type: 'general'  }, A: { color: 'red',   symbol: '仕', type: 'advisor'  },
@@ -30,8 +31,8 @@ const FEN_MAP: Record<string, { color: 'red' | 'black'; symbol: string; type: st
 };
 
 const SYMBOL_TO_FEN: Record<string, string> = {
-  '帥':'K','仕':'A','相':'E','傌':'H','俥':'R','炮':'C','兵':'P',
-  '將':'k','士':'a','象':'e','馬':'h','車':'r','砲':'c','卒':'p',
+  '帥':'K','仕':'A','相':'B','傌':'N','俥':'R','炮':'C','兵':'P',
+  '將':'k','士':'a','象':'b','馬':'n','車':'r','砲':'c','卒':'p',
 };
 
 function fenToBoard(fen: string): CellDto[][] {

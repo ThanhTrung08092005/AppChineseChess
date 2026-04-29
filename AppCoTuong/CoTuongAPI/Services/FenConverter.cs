@@ -3,16 +3,13 @@ using CoTuongAPI.Engine;
 namespace CoTuongAPI.Services
 {
     /// <summary>
-    /// Chuyển đổi Board ↔ FEN chuẩn UCCI (dùng cho Pikafish).
+    /// Chuyển đổi Board ↔ FEN chuẩn Pikafish/UCCI.
     ///
-    /// Quy ước tọa độ UCCI:
-    ///   - Cột: a–i  (a=col 0, i=col 8)
-    ///   - Hàng: 0–9 (0=row 9 phía Đỏ, 9=row 0 phía Đen)
-    ///     → hàng UCCI = 9 - row_board
+    /// Ký hiệu FEN chính thức (từ wiki Pikafish):
+    ///   Đỏ  (uppercase): R=Xe, N=Mã, B=Tượng, A=Sĩ, K=Tướng, C=Pháo, P=Tốt
+    ///   Đen (lowercase): r, n, b, a, k, c, p
     ///
-    /// Ký hiệu FEN UCCI:
-    ///   Đỏ  (uppercase): R=Xe, H=Mã, E=Tượng, A=Sĩ, K=Tướng, C=Pháo, P=Tốt
-    ///   Đen (lowercase): r, h, e, a, k, c, p
+    /// Tọa độ UCCI: cột a-i, hàng 0-9 (0=đáy Đỏ → board row 9)
     /// </summary>
     public static class FenConverter
     {
@@ -92,8 +89,10 @@ namespace CoTuongAPI.Services
             {
                 'k' => PieceType.General,
                 'a' => PieceType.Advisor,
-                'e' => PieceType.Elephant,
-                'h' => PieceType.Horse,
+                'b' => PieceType.Elephant,  // b = Bishop/Tượng (chuẩn Pikafish)
+                'e' => PieceType.Elephant,  // alias cũ
+                'n' => PieceType.Horse,     // n = kNight/Mã (chuẩn Pikafish)
+                'h' => PieceType.Horse,     // alias cũ
                 'r' => PieceType.Chariot,
                 'c' => PieceType.Cannon,
                 'p' => PieceType.Soldier,
@@ -124,12 +123,13 @@ namespace CoTuongAPI.Services
         // ── Helpers ───────────────────────────────────────────────────────────
         private static char PieceToFenChar(Piece p)
         {
+            // Dùng ký hiệu chuẩn Pikafish: n=Mã, b=Tượng
             char c = p.Type switch
             {
                 PieceType.General  => 'k',
                 PieceType.Advisor  => 'a',
-                PieceType.Elephant => 'e',
-                PieceType.Horse    => 'h',
+                PieceType.Elephant => 'b',
+                PieceType.Horse    => 'n',
                 PieceType.Chariot  => 'r',
                 PieceType.Cannon   => 'c',
                 PieceType.Soldier  => 'p',
