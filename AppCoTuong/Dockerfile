@@ -39,8 +39,7 @@ RUN wget -q --tries=3 --timeout=120 \
 # Compile — SSE4.1+POPCNT tương thích rộng nhất với Railway x86-64
 RUN make -j$(nproc) build ARCH=x86-64-sse41-popcnt COMP=gcc \
  && make strip \
- && ls -lh pikafish \
- && file pikafish
+ && ls -lh pikafish
 
 # ── Stage 4: Runtime ──────────────────────────────────────────────────────────
 FROM mcr.microsoft.com/dotnet/aspnet:9.0
