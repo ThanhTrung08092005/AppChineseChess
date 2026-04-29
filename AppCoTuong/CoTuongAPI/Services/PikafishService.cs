@@ -25,6 +25,10 @@ namespace CoTuongAPI.Services
             Environment.GetEnvironmentVariable("PIKAFISH_PATH")
             ?? "/usr/local/bin/pikafish";
 
+        private static readonly string NnuePath =
+            Environment.GetEnvironmentVariable("PIKAFISH_NNUE")
+            ?? "/usr/local/share/pikafish.nnue";
+
         // ── Khởi động process ─────────────────────────────────────────────────
         public async Task<bool> StartAsync()
         {
@@ -71,11 +75,14 @@ namespace CoTuongAPI.Services
                     }
                 }
 
-                // Cấu hình: giới hạn RAM hash table
+                // Cấu hình: giới hạn RAM hash table + NNUE path
                 if (_ready)
                 {
                     await _in.WriteLineAsync("setoption name Hash value 32");
                     await _in.WriteLineAsync("setoption name Threads value 1");
+                    // Chỉ set EvalFile nếu file tồn tại
+                    if (File.Exists(NnuePath))
+                        await _in.WriteLineAsync($"setoption name EvalFile value {NnuePath}");
                     await _in.FlushAsync();
                 }
             }
