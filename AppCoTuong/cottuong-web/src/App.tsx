@@ -37,6 +37,7 @@ export default function App() {
   const [tv,       setTv]       = useState(600);
   const [mode,     setMode]     = useState<'pvai' | 'pvp'>('pvai');
   const [showH,    setShowH]    = useState(true);
+  const [flipped,  setFlipped]  = useState(false);
 
   const {
     state, selected, loading, hinting, error,
@@ -241,6 +242,14 @@ export default function App() {
   const rc = state?.capturedRed   ?? [];
   const bc = state?.capturedBlack ?? [];
 
+  // Flip board helpers
+  const displayBoard    = flipped ? [...(state?.board ?? [])].reverse().map(r => [...r].reverse()) : (state?.board ?? []);
+  const displayLegal    = (state?.legalMoves ?? []).map(m => flipped ? { fromRow: 9-m.fromRow, fromCol: 8-m.fromCol, toRow: 9-m.toRow, toCol: 8-m.toCol } : m);
+  const displayLast     = state?.lastMove && flipped ? { fromRow: 9-state.lastMove.fromRow, fromCol: 8-state.lastMove.fromCol, toRow: 9-state.lastMove.toRow, toCol: 8-state.lastMove.toCol } : (state?.lastMove ?? null);
+  const displaySelected = selected && flipped ? [9-selected[0], 8-selected[1]] as [number,number] : selected;
+  const displayHint     = hintMove && flipped ? { fromRow: 9-hintMove.fromRow, fromCol: 8-hintMove.fromCol, toRow: 9-hintMove.toRow, toCol: 8-hintMove.toCol } : hintMove;
+  const handleFlippedClick = (row: number, col: number) => handleCellClick(flipped ? 9-row : row, flipped ? 8-col : col);
+
   return (
     <div className="shell">
       <SB />
@@ -253,6 +262,7 @@ export default function App() {
                 onClick={() => api.getState(state?.gameId ?? '').then(() =>
                   window.open(`/api/game/${state?.gameId}/pgn`, '_blank')).catch(() => {})}
                 disabled={!state}>💾 PGN</button>
+              <button className="btn btn-white btn-sm" onClick={() => setFlipped(v => !v)}>🔄 Lật bàn</button>
               <button className="btn btn-white btn-sm" onClick={() => setScreen('home')}>← Trang chủ</button>
             </div>
           </div>
@@ -268,8 +278,8 @@ export default function App() {
               </div>
 
               <div className="board-wrap">
-                {state && <Board board={state.board} legalMoves={state.legalMoves} lastMove={state.lastMove}
-                  selected={selected} hintMove={hintMove} onCellClick={handleCellClick} disabled={disabled} />}
+                {state && <Board board={displayBoard} legalMoves={displayLegal} lastMove={displayLast}
+                  selected={displaySelected} hintMove={displayHint} onCellClick={handleFlippedClick} disabled={disabled} />}
                 {loading && <div className="board-spin">🤖 AI đang suy nghĩ...</div>}
               </div>
 
