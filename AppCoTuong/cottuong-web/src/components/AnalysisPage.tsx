@@ -80,10 +80,9 @@ interface MoveScoreOverlayProps {
   flipped: boolean;
   cellSize: number;
   margin: number;
-  currentTurn: "red"|"black";
   onHover: (arrows: ArrowDef[]) => void;
 }
-function MoveScoreOverlay({ pvLines, flipped, cellSize, margin, currentTurn, onHover }: MoveScoreOverlayProps) {
+function MoveScoreOverlay({ pvLines, flipped, cellSize, margin, onHover }: MoveScoreOverlayProps) {
   return (
     <svg style={{position:"absolute",inset:0,pointerEvents:"none",zIndex:10}}
       width="100%" height="100%">
@@ -492,7 +491,6 @@ export default function AnalysisPage() {
                 flipped={flipped}
                 cellSize={cellSize}
                 margin={boardMargin}
-                currentTurn={currentTurn}
                 onHover={setHoverArrows}
               />
             )}
