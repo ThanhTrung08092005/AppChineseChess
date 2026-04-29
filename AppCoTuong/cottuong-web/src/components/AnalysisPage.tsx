@@ -393,7 +393,6 @@ export default function AnalysisPage() {
                         onClick={() => {
                           if (mv) {
                             setArrows([{ ...mv, color: 'rgba(231,76,60,0.85)' }]);
-                            setHintMove(mv);
                           }
                         }}
                         style={{
@@ -435,7 +434,6 @@ export default function AnalysisPage() {
                         if (pv.bestMoveCoord) {
                           const mv = { fromRow: pv.bestMoveCoord.fromRow, fromCol: pv.bestMoveCoord.fromCol, toRow: pv.bestMoveCoord.toRow, toCol: pv.bestMoveCoord.toCol };
                           setArrows([{ ...mv, color: i === 0 ? 'rgba(231,76,60,0.85)' : 'rgba(33,150,243,0.72)' }]);
-                          setHintMove(mv);
                         }
                       }}
                       style={{
