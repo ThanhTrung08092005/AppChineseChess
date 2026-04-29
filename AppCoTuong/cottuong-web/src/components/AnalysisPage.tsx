@@ -1,7 +1,7 @@
 ﻿import { useState, useCallback, useRef, useEffect } from "react";
 import Board, { type ArrowDef } from "./Board";
 import ScoreGraph, { type ScorePoint } from "./ScoreGraph";
-import type { CellDto, MoveDto, GameStateDto } from "../api/gameApi";
+import type { CellDto, MoveDto } from "../api/gameApi";
 import { api } from "../api/gameApi";
 import { usePikafish } from "../hooks/usePikafish";
 
@@ -174,23 +174,7 @@ export default function AnalysisPage() {
     });
   }, []);
 
-  // ── Áp dụng GameStateDto vào state ───────────────────────────────────────
-  const applyState = useCallback((s: GameStateDto, newFen: string, mv: MoveDto | null, label?: string) => {
-    setBoard(s.board);
-    setLegalMoves(s.legalMoves);
-    setCurrentTurn(s.currentTurn);
-    setLastMove(s.lastMove);
-    setFen(newFen);
-    setFenInput(newFen);
-    setResult(null);
-    setArrows([]);
-    setSelected(null);
-    if (mv) {
-      const newHist = [...history.slice(0, histIdx + 1), { fen: newFen, move: mv, label }];
-      setHistory(newHist);
-      setHistIdx(newHist.length - 1);
-    }
-  }, [history, histIdx]);
+  // ── Áp dụng GameStateDto vào state — reserved for future use ────────────
 
   // Tính cellSize từ kích thước thực của canvas
   useEffect(() => {
