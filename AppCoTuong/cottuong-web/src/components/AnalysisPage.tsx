@@ -12,6 +12,25 @@ interface AnalysisResult {
   score: number; isMate: boolean; mateIn: number; depth: number;
   nodes: number; nps: number; pvLine: string; engine: string;
   lines: InfoLine[];
+  // MultiPV
+  pvLines?: PVLine[];
+  multiPvCount?: number;
+  // Opening Book
+  openingName?: string;
+  bookMoves?: BookMove[];
+}
+
+interface PVLine {
+  rank: number;
+  bestMove: string;
+  bestMoveCoord: { fromRow: number; fromCol: number; toRow: number; toCol: number } | null;
+  score: number; isMate: boolean; mateIn: number;
+  depth: number; nodes: number; nps: number; pvLine: string;
+  inBook: boolean; bookName?: string;
+}
+
+interface BookMove {
+  ucci: string; name: string; nameVi: string; weight: number;
 }
 
 // FEN chuẩn Pikafish/UCCI: r=Xe, n=Mã, b=Tượng, a=Sĩ, k=Tướng, c=Pháo, p=Tốt
@@ -85,11 +104,11 @@ function scoreColor(score: number, isMate: boolean, mateIn: number): string {
   if (score > 50) return '#27ae60'; if (score < -50) return '#e74c3c'; return '#888';
 }
 
-async function callAnalyze(fen: string, timeMs: number): Promise<AnalysisResult> {
+async function callAnalyze(fen: string, timeMs: number, multiPV = 5): Promise<AnalysisResult> {
   const base = import.meta.env.VITE_API_URL ?? '';
   const res = await fetch(`${base}/api/analyze`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fen, timeMs }),
+    body: JSON.stringify({ fen, timeMs, multiPV }),
   });
   if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as any).error ?? `HTTP ${res.status}`); }
   return res.json();
@@ -112,7 +131,8 @@ export default function AnalysisPage() {
   const [moveHistory, setMoveHistory] = useState<{ fen: string; move: MoveDto | null; score?: number }[]>([
     { fen: START_FEN, move: null }
   ]);
-  const [histIdx, setHistIdx] = useState(0);
+  const [histIdx,    setHistIdx]    = useState(0);
+  const [activeTab,  setActiveTab]  = useState<'book'|'moves'>('book');
   const analyzing = useRef(false);
 
   // ── Phân tích ──────────────────────────────────────────────────────────────
@@ -121,7 +141,7 @@ export default function AnalysisPage() {
     analyzing.current = true;
     setLoading(true); setError(''); setSelLine(null);
     try {
-      const r = await callAnalyze(fenStr, timeMs);
+      const r = await callAnalyze(fenStr, timeMs, 5);
       setResult(r);
       // Vẽ mũi tên bestmove (đỏ) + ponder (xanh)
       const newArrows: ArrowDef[] = [];
@@ -336,49 +356,147 @@ export default function AnalysisPage() {
         <div style={{ width: 220, flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {/* Tabs */}
           <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', background: '#fafafa', flexShrink: 0 }}>
-            <div style={{ flex: 1, padding: '9px 10px', textAlign: 'center', fontSize: '.78rem', fontWeight: 700, color: 'var(--red)', borderBottom: '2px solid var(--red)' }}>
-              Cơ sở dữ liệu...
-            </div>
-            <div style={{ flex: 1, padding: '9px 10px', textAlign: 'center', fontSize: '.78rem', color: 'var(--muted)' }}>Nước cờ</div>
+            {(['book', 'moves'] as const).map(tab => (
+              <div key={tab} onClick={() => setActiveTab(tab)} style={{
+                flex: 1, padding: '9px 10px', textAlign: 'center',
+                fontSize: '.78rem', fontWeight: 700, cursor: 'pointer',
+                color: activeTab === tab ? 'var(--red)' : 'var(--muted)',
+                borderBottom: activeTab === tab ? '2px solid var(--red)' : '2px solid transparent',
+                transition: 'all .15s',
+              }}>
+                {tab === 'book' ? '📚 Khai cuộc' : '♟ Nước cờ'}
+              </div>
+            ))}
           </div>
 
-          {/* Header */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 60px', padding: '6px 10px', background: '#fafafa', borderBottom: '1px solid var(--border)', fontSize: '.68rem', color: 'var(--muted)', fontWeight: 600, flexShrink: 0 }}>
-            <span>Nước cờ</span><span style={{ textAlign: 'center' }}>Bên</span><span style={{ textAlign: 'center' }}>Điểm số</span>
-          </div>
-
-          {/* PV moves với điểm */}
-          <div style={{ flex: 1, overflowY: 'auto' }}>
-            {pvMoves.length === 0 ? (
-              <div style={{ padding: 16, textAlign: 'center', color: 'var(--muted)', fontSize: '.78rem' }}>Chọn một dòng phân tích</div>
-            ) : pvMoves.map((mv, i) => {
-              const isRed = currentTurn === 'red' ? i % 2 === 0 : i % 2 !== 0;
-              const sc = pvScores[i] ?? 0;
-              const scStr = sc === 0 ? '0' : (sc > 0 ? `+${(sc/100).toFixed(2)}` : (sc/100).toFixed(2));
-              const scCol = sc > 50 ? '#27ae60' : sc < -50 ? '#e74c3c' : '#888';
-              return (
-                <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 60px', padding: '5px 10px', borderBottom: '1px solid #f5f5f5', background: i % 2 === 0 ? '#fff' : '#fafafa', fontSize: '.76rem' }}>
-                  <span style={{ fontFamily: 'monospace', fontWeight: i === 0 ? 700 : 400, color: i === 0 ? 'var(--red)' : '#333' }}>
-                    {Math.floor(i/2)+1}. {mv}
-                  </span>
-                  <span style={{ textAlign: 'center', color: isRed ? 'var(--red)' : '#333', fontWeight: 600 }}>{isRed ? '🔴' : '⚫'}</span>
-                  <span style={{ textAlign: 'center', color: scCol, fontSize: '.7rem', fontWeight: 600 }}>{i === 0 ? scStr : ''}</span>
+          {/* ── Tab: Cơ sở dữ liệu khai cuộc ── */}
+          {activeTab === 'book' && (
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+              {/* Opening name */}
+              {result?.openingName && (
+                <div style={{ padding: '8px 10px', background: '#fdf0ee', borderBottom: '1px solid #f5c6c0', fontSize: '.75rem', fontWeight: 700, color: 'var(--red)' }}>
+                  📖 {result.openingName}
                 </div>
-              );
-            })}
-          </div>
+              )}
+
+              {/* Book moves */}
+              {result?.bookMoves && result.bookMoves.length > 0 ? (
+                <>
+                  <div style={{ padding: '6px 10px', background: '#fafafa', borderBottom: '1px solid var(--border)', fontSize: '.68rem', color: 'var(--muted)', fontWeight: 600, display: 'grid', gridTemplateColumns: '1fr 50px 40px' }}>
+                    <span>Nước cờ</span><span style={{ textAlign: 'center' }}>Tên</span><span style={{ textAlign: 'center' }}>Độ ưu</span>
+                  </div>
+                  {result.bookMoves.map((bm, i) => {
+                    const mv = parseUcci(bm.ucci);
+                    const isRed = currentTurn === 'red';
+                    return (
+                      <div key={i}
+                        onClick={() => {
+                          if (mv) {
+                            setArrows([{ ...mv, color: 'rgba(231,76,60,0.85)' }]);
+                            setHintMove(mv);
+                          }
+                        }}
+                        style={{
+                          display: 'grid', gridTemplateColumns: '1fr 50px 40px',
+                          padding: '7px 10px', borderBottom: '1px solid #f5f5f5',
+                          background: i % 2 === 0 ? '#fff' : '#fafafa',
+                          cursor: 'pointer', transition: 'background .1s',
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#fdf0ee')}
+                        onMouseLeave={e => (e.currentTarget.style.background = i % 2 === 0 ? '#fff' : '#fafafa')}>
+                        <span style={{ fontFamily: 'monospace', fontWeight: 700, color: isRed ? 'var(--red)' : '#333', fontSize: '.78rem' }}>
+                          {bm.ucci}
+                        </span>
+                        <span style={{ fontSize: '.68rem', color: 'var(--muted)', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {bm.nameVi}
+                        </span>
+                        <span style={{ textAlign: 'center' }}>
+                          {'★'.repeat(Math.ceil(bm.weight / 34)).slice(0, 3)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </>
+              ) : (
+                <div style={{ padding: 16, textAlign: 'center', color: 'var(--muted)', fontSize: '.78rem' }}>
+                  {result ? 'Không có trong sách khai cuộc' : 'Nhấn Phân tích để tra cứu'}
+                </div>
+              )}
+
+              {/* MultiPV lines */}
+              {result?.pvLines && result.pvLines.length > 0 && (
+                <>
+                  <div style={{ padding: '6px 10px', background: '#f0f0f0', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', fontSize: '.68rem', color: 'var(--muted)', fontWeight: 700 }}>
+                    TOP {result.pvLines.length} NƯỚC — PIKAFISH
+                  </div>
+                  {result.pvLines.map((pv, i) => (
+                    <div key={i}
+                      onClick={() => {
+                        if (pv.bestMoveCoord) {
+                          const mv = { fromRow: pv.bestMoveCoord.fromRow, fromCol: pv.bestMoveCoord.fromCol, toRow: pv.bestMoveCoord.toRow, toCol: pv.bestMoveCoord.toCol };
+                          setArrows([{ ...mv, color: i === 0 ? 'rgba(231,76,60,0.85)' : 'rgba(33,150,243,0.72)' }]);
+                          setHintMove(mv);
+                        }
+                      }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        padding: '7px 10px', borderBottom: '1px solid #f5f5f5',
+                        background: i === 0 ? '#fff8f7' : i % 2 === 0 ? '#fff' : '#fafafa',
+                        cursor: 'pointer', transition: 'background .1s',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#fdf0ee')}
+                      onMouseLeave={e => (e.currentTarget.style.background = i === 0 ? '#fff8f7' : i % 2 === 0 ? '#fff' : '#fafafa')}>
+                      <span style={{ fontSize: '.68rem', color: 'var(--muted)', minWidth: 14 }}>{i + 1}.</span>
+                      <span style={{ fontFamily: 'monospace', fontWeight: i === 0 ? 700 : 500, color: i === 0 ? 'var(--red)' : '#333', fontSize: '.78rem', flex: 1 }}>
+                        {pv.bestMove}
+                        {pv.inBook && <span style={{ marginLeft: 4, fontSize: '.62rem', color: '#27ae60', fontWeight: 700 }}>📚</span>}
+                      </span>
+                      <span style={{ fontSize: '.72rem', fontWeight: 600, color: scoreColor(pv.score, pv.isMate, pv.mateIn) }}>
+                        {pv.isMate ? `M${pv.mateIn}` : fmtScore(pv.score, false, 0)}
+                      </span>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ── Tab: Nước cờ PV ── */}
+          {activeTab === 'moves' && (
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 60px', padding: '6px 10px', background: '#fafafa', borderBottom: '1px solid var(--border)', fontSize: '.68rem', color: 'var(--muted)', fontWeight: 600, flexShrink: 0 }}>
+                <span>Nước cờ</span><span style={{ textAlign: 'center' }}>Bên</span><span style={{ textAlign: 'center' }}>Điểm</span>
+              </div>
+              {pvMoves.length === 0 ? (
+                <div style={{ padding: 16, textAlign: 'center', color: 'var(--muted)', fontSize: '.78rem' }}>Chọn một dòng phân tích</div>
+              ) : pvMoves.map((mv, i) => {
+                const isRed = currentTurn === 'red' ? i % 2 === 0 : i % 2 !== 0;
+                const sc = pvScores[i] ?? 0;
+                const scStr = sc === 0 ? '0' : (sc > 0 ? `+${(sc/100).toFixed(2)}` : (sc/100).toFixed(2));
+                const scCol = sc > 50 ? '#27ae60' : sc < -50 ? '#e74c3c' : '#888';
+                return (
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 60px', padding: '5px 10px', borderBottom: '1px solid #f5f5f5', background: i % 2 === 0 ? '#fff' : '#fafafa', fontSize: '.76rem' }}>
+                    <span style={{ fontFamily: 'monospace', fontWeight: i === 0 ? 700 : 400, color: i === 0 ? 'var(--red)' : '#333' }}>
+                      {Math.floor(i/2)+1}. {mv}
+                    </span>
+                    <span style={{ textAlign: 'center', color: isRed ? 'var(--red)' : '#333', fontWeight: 600 }}>{isRed ? '🔴' : '⚫'}</span>
+                    <span style={{ textAlign: 'center', color: scCol, fontSize: '.7rem', fontWeight: 600 }}>{i === 0 ? scStr : ''}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Engine info */}
           <div style={{ padding: '8px 10px', borderTop: '1px solid var(--border)', fontSize: '.68rem', color: 'var(--muted)', background: '#fafafa', flexShrink: 0 }}>
             <div style={{ fontWeight: 700, color: 'var(--red)', marginBottom: 4 }}>Pikafish 2026</div>
             {result ? (
               <>
-                <div>Depth: <strong>{result.depth}</strong></div>
+                <div>Depth: <strong>{result.depth}</strong> · MultiPV: <strong>{result.multiPvCount ?? 1}</strong></div>
                 <div>Nodes: <strong>{fmtNodes(result.nodes)}</strong></div>
                 <div>NPS: <strong>{fmtNodes(result.nps)}/s</strong></div>
-                <div>Bestmove: <strong style={{ color: 'var(--red)', fontFamily: 'monospace' }}>{result.bestMove || '—'}</strong></div>
               </>
-            ) : <div style={{ color: 'var(--muted)' }}>Chưa phân tích</div>}
+            ) : <div>Chưa phân tích</div>}
           </div>
         </div>
       </div>

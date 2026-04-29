@@ -106,57 +106,108 @@ namespace CoTuongAPI.Services
         // ── Phân tích thế cờ (trả về bestmove + score + depth) ───────────────
         public async Task<AnalysisResult?> AnalyzeAsync(Board board, int timeLimitMs = 2000)
         {
+            var results = await AnalyzeMultiPVAsync(board, timeLimitMs, multiPv: 1);
+            return results?.FirstOrDefault();
+        }
+
+        // ── Phân tích MultiPV — trả về top N nước đi tốt nhất ────────────────
+        public async Task<List<AnalysisResult>?> AnalyzeMultiPVAsync(Board board, int timeLimitMs = 2000, int multiPv = 5)
+        {
             if (!_ready) return null;
 
             await _lock.WaitAsync();
             try
             {
                 string fen = FenConverter.ToFen(board);
+                multiPv = Math.Clamp(multiPv, 1, 10);
 
-                await _in!.WriteLineAsync($"position fen {fen}");
+                // Set MultiPV trước khi search
+                await _in!.WriteLineAsync($"setoption name MultiPV value {multiPv}");
+                await _in.WriteLineAsync($"position fen {fen}");
                 await _in.WriteLineAsync($"go movetime {timeLimitMs}");
                 await _in.FlushAsync();
 
-                var result = new AnalysisResult();
-                var cts    = new CancellationTokenSource(TimeSpan.FromMilliseconds(timeLimitMs + 5000));
+                // Mỗi multipv index có result riêng
+                var pvResults = new Dictionary<int, AnalysisResult>();
+                var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(timeLimitMs + 8000));
 
                 while (!cts.Token.IsCancellationRequested)
                 {
                     var line = await _out!.ReadLineAsync(cts.Token);
                     if (line == null) break;
 
-                    // "info depth 12 score cp 45 ..."
                     if (line.StartsWith("info", StringComparison.OrdinalIgnoreCase))
                     {
-                        ParseInfoLine(line, result);
+                        int pvIdx = ParseMultiPVIndex(line);
+                        if (!pvResults.ContainsKey(pvIdx))
+                            pvResults[pvIdx] = new AnalysisResult();
+                        ParseInfoLine(line, pvResults[pvIdx]);
                         continue;
                     }
 
-                    // "bestmove a0b2 ponder ..."
                     if (line.StartsWith("bestmove", StringComparison.OrdinalIgnoreCase))
                     {
                         var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                        if (parts.Length >= 2 && parts[1] != "(none)")
+                        // bestmove là nước của multipv 1
+                        if (pvResults.TryGetValue(1, out var r1) && parts.Length >= 2 && parts[1] != "(none)")
                         {
                             var (fr, fc, tr, tc) = FenConverter.ParseUcciMove(parts[1]);
-                            result.BestMove = new Move(fr, fc, tr, tc);
-                            result.BestMoveUcci = parts[1];
+                            r1.BestMove = new Move(fr, fc, tr, tc);
+                            r1.BestMoveUcci = parts[1];
                         }
-                        Console.WriteLine($"[Pikafish] bestmove={result.BestMoveUcci} score={result.Score} depth={result.Depth}");
-                        return result;
+                        break;
                     }
                 }
+
+                // Reset MultiPV về 1 sau khi xong
+                await _in.WriteLineAsync("setoption name MultiPV value 1");
+                await _in.FlushAsync();
+
+                if (pvResults.Count == 0) return null;
+
+                // Sắp xếp theo multipv index, parse bestmove từ PV line
+                var sorted = pvResults.OrderBy(kv => kv.Key).Select(kv =>
+                {
+                    var r = kv.Value;
+                    // Lấy nước đi đầu tiên từ PV line nếu chưa có
+                    if (r.BestMove == null && !string.IsNullOrEmpty(r.PvLine))
+                    {
+                        var firstMove = r.PvLine.Split(' ').FirstOrDefault(s => s.Length == 4);
+                        if (firstMove != null)
+                        {
+                            try
+                            {
+                                var (fr, fc, tr, tc) = FenConverter.ParseUcciMove(firstMove);
+                                r.BestMove = new Move(fr, fc, tr, tc);
+                                r.BestMoveUcci = firstMove;
+                            }
+                            catch { /* ignore */ }
+                        }
+                    }
+                    return r;
+                }).ToList();
+
+                Console.WriteLine($"[Pikafish] MultiPV={multiPv} → {sorted.Count} lines");
+                return sorted;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Pikafish] Analyze error: {ex.Message}");
+                Console.WriteLine($"[Pikafish] AnalyzeMultiPV error: {ex.Message}");
+                return null;
             }
             finally
             {
                 _lock.Release();
             }
+        }
 
-            return null;
+        private static int ParseMultiPVIndex(string line)
+        {
+            var tokens = line.Split(' ');
+            for (int i = 0; i < tokens.Length - 1; i++)
+                if (tokens[i] == "multipv" && int.TryParse(tokens[i + 1], out int idx))
+                    return idx;
+            return 1;
         }
 
         private static void ParseInfoLine(string line, AnalysisResult r)
