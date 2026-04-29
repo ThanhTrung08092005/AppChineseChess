@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using CoTuongAPI.AI;
 using CoTuongAPI.Engine;
 using CoTuongAPI.Services;
 
@@ -18,7 +19,7 @@ namespace CoTuongAPI.Controllers
         }
 
         /// POST /api/analyze
-        /// Tích hợp: Opening Book (EPD) + Pikafish MultiPV
+        /// Tích hợp: Opening Book + Pikafish MultiPV (fallback về Minimax nếu Pikafish không có)
         [HttpPost]
         public async Task<IActionResult> Analyze([FromBody] AnalyzeRequest req)
         {
@@ -36,12 +37,50 @@ namespace CoTuongAPI.Controllers
             var bookMoves   = _book.Lookup(req.Fen);
             var openingName = _book.GetOpeningName(req.Fen);
 
-            // ── 2. Pikafish MultiPV ───────────────────────────────────────────
-            bool started = await _pikafish.StartAsync();
-            if (!started)
-                return StatusCode(503, new { error = "Pikafish engine not available" });
+            // ── 2. Thử Pikafish MultiPV ───────────────────────────────────────
+            bool usedPikafish = false;
+            List<AnalysisResult>? pvResults = null;
 
-            var pvResults = await _pikafish.AnalyzeMultiPVAsync(board, timeMs, multiPv);
+            bool started = await _pikafish.StartAsync();
+            if (started)
+            {
+                pvResults    = await _pikafish.AnalyzeMultiPVAsync(board, timeMs, multiPv);
+                usedPikafish = pvResults != null && pvResults.Count > 0;
+            }
+
+            // ── 3. Fallback về Minimax nếu Pikafish không có ──────────────────
+            if (!usedPikafish)
+            {
+                Console.WriteLine("[AnalyzeController] Pikafish unavailable, falling back to Minimax");
+                int depth  = Math.Clamp(req.TimeMs / 500, 3, 6); // ước tính depth từ timeMs
+                var ai     = new Minimax(depth, maxTimeMs: timeMs);
+                var clone  = board.Clone();
+                var move   = ai.FindBestMove(clone);
+
+                if (move == null)
+                    return BadRequest(new { error = "No legal moves in this position" });
+
+                // Tạo kết quả giả lập theo format Pikafish để frontend không cần thay đổi
+                var ucci = MoveToUcci(move);
+                var fakeResult = new AnalysisResult
+                {
+                    BestMove     = move,
+                    BestMoveUcci = ucci,
+                    Score        = Evaluation.Evaluate(clone),
+                    Depth        = depth,
+                    Nodes        = ai.NodesSearched,
+                    PvLine       = ucci,
+                };
+                fakeResult.Lines.Add(new InfoLine
+                {
+                    Depth  = depth,
+                    Score  = fakeResult.Score,
+                    Nodes  = ai.NodesSearched,
+                    PvLine = ucci,
+                });
+                pvResults = [fakeResult];
+            }
+
             if (pvResults == null || pvResults.Count == 0)
                 return StatusCode(503, new { error = "Analysis failed" });
 
@@ -85,7 +124,7 @@ namespace CoTuongAPI.Controllers
                 nodes         = best.Nodes,
                 nps           = best.Nps,
                 pvLine        = best.PvLine,
-                engine        = "pikafish",
+                engine        = usedPikafish ? "pikafish" : "minimax",
                 multiPvCount  = pvResults.Count,
 
                 // Tất cả PV lines (MultiPV)
@@ -110,6 +149,17 @@ namespace CoTuongAPI.Controllers
                     timeMs = l.TimeMs, pvLine = l.PvLine,
                 }),
             });
+        }
+
+        // ── Helper: chuyển Move sang UCCI string (vd: "b2e2") ────────────────
+        // UCCI: cột a-i, hàng 0-9 (0 = đáy Đỏ = board row 9)
+        private static string MoveToUcci(Move m)
+        {
+            char fc = (char)('a' + m.FromCol);
+            int  fr = 9 - m.FromRow;
+            char tc = (char)('a' + m.ToCol);
+            int  tr = 9 - m.ToRow;
+            return $"{fc}{fr}{tc}{tr}";
         }
     }
 
