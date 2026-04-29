@@ -49,16 +49,6 @@ namespace CoTuongAPI.AI
         // ── LMR reduction table [depth][moveCount] ────────────────────────────
         private static readonly int[,] LmrTable;
 
-        static Minimax()
-        {
-            // Khởi tạo LMR table: R = ln(depth) * ln(moveCount) / 2.0
-            // (công thức từ Stockfish/Pikafish)
-            LmrTable = new int[64, 64];
-            for (int d = 1; d < 64; d++)
-                for (int m = 1; m < 64; m++)
-                    LmrTable[d, m] = (int)(Math.Log(d) * Math.Log(m) / 2.0);
-        }
-
         public Minimax(int depth = 6, int maxTimeMs = 5000)
         {
             _maxDepth  = depth;
@@ -490,8 +480,16 @@ namespace CoTuongAPI.AI
         private static readonly ulong[,,,] ZobristTable;
         private static readonly ulong ZobristBlackTurn;
 
+        // ── Single static constructor — khởi tạo LMR table + Zobrist ─────────
         static Minimax()
         {
+            // LMR table: R = ln(depth) * ln(moveCount) / 2.0 (Stockfish/Pikafish formula)
+            LmrTable = new int[64, 64];
+            for (int d = 1; d < 64; d++)
+                for (int m = 1; m < 64; m++)
+                    LmrTable[d, m] = (int)(Math.Log(d) * Math.Log(m) / 2.0);
+
+            // Zobrist table
             var rng = new Random(87654321);
             ZobristTable     = new ulong[Board.Rows, Board.Cols, 2, 8];
             ZobristBlackTurn = (ulong)rng.NextInt64();
