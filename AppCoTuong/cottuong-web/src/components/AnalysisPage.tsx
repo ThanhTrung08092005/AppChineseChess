@@ -1,7 +1,8 @@
 ﻿import { useState, useCallback, useRef, useEffect } from "react";
 import Board, { type ArrowDef } from "./Board";
 import ScoreGraph, { type ScorePoint } from "./ScoreGraph";
-import type { CellDto, MoveDto } from "../api/gameApi";
+import type { CellDto, MoveDto, GameStateDto } from "../api/gameApi";
+import { api } from "../api/gameApi";
 import { usePikafish } from "../hooks/usePikafish";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -133,13 +134,14 @@ export default function AnalysisPage() {
   const [fen,          setFen]          = useState(START_FEN);
   const [fenInput,     setFenInput]     = useState(START_FEN);
   const [board,        setBoard]        = useState<CellDto[][]>(()=>fenToBoard(START_FEN));
+  const [legalMoves,   setLegalMoves]   = useState<MoveDto[]>([]);
+  const [gameId,       setGameId]       = useState<string|null>(null);
   const [result,       setResult]       = useState<AnalysisResult|null>(null);
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState("");
   const [timeMs,       setTimeMs]       = useState(3000);
   const [selLine,      setSelLine]      = useState<InfoLine|null>(null);
   const [selected,     setSelected]     = useState<[number,number]|null>(null);
-  const [legalMoves,   setLegalMoves]   = useState<MoveDto[]>([]);
   const [lastMove,     setLastMove]     = useState<MoveDto|null>(null);
   const [currentTurn,  setCurrentTurn]  = useState<"red"|"black">(fenTurn(START_FEN));
   const [arrows,       setArrows]       = useState<ArrowDef[]>([]);
@@ -150,17 +152,45 @@ export default function AnalysisPage() {
   const [histIdx,      setHistIdx]      = useState(0);
   const [useWasm,      setUseWasm]      = useState(true);
   const [multiPv,      setMultiPv]      = useState(5);
-  // Chế độ auto-analyze: tự động phân tích sau mỗi nước đi
   const [autoAnalyze,  setAutoAnalyze]  = useState(false);
-  // Hiển thị điểm số overlay trên bàn cờ
   const [showOverlay,  setShowOverlay]  = useState(true);
-  // Kích thước cell để tính toạ độ overlay
   const [cellSize,     setCellSize]     = useState(56);
   const [boardMargin,  setBoardMargin]  = useState(48);
 
-  const analyzing  = useRef(false);
+  const analyzing    = useRef(false);
   const boardWrapRef = useRef<HTMLDivElement>(null);
-  const pikafish   = usePikafish();
+  const pikafish     = usePikafish();
+
+  // ── Khởi tạo game session khi mount ──────────────────────────────────────
+  useEffect(() => {
+    api.newGame('pvp', 9999).then(s => {
+      setGameId(s.gameId);
+      setBoard(s.board);
+      setLegalMoves(s.legalMoves);
+      setCurrentTurn(s.currentTurn);
+    }).catch(() => {
+      // Nếu không có server, dùng FEN render tĩnh (không có legal moves)
+      setBoard(fenToBoard(START_FEN));
+    });
+  }, []);
+
+  // ── Áp dụng GameStateDto vào state ───────────────────────────────────────
+  const applyState = useCallback((s: GameStateDto, newFen: string, mv: MoveDto | null, label?: string) => {
+    setBoard(s.board);
+    setLegalMoves(s.legalMoves);
+    setCurrentTurn(s.currentTurn);
+    setLastMove(s.lastMove);
+    setFen(newFen);
+    setFenInput(newFen);
+    setResult(null);
+    setArrows([]);
+    setSelected(null);
+    if (mv) {
+      const newHist = [...history.slice(0, histIdx + 1), { fen: newFen, move: mv, label }];
+      setHistory(newHist);
+      setHistIdx(newHist.length - 1);
+    }
+  }, [history, histIdx]);
 
   // Tính cellSize từ kích thước thực của canvas
   useEffect(() => {
@@ -175,7 +205,7 @@ export default function AnalysisPage() {
     });
     obs.observe(el);
     return () => obs.disconnect();
-  }, [board]);
+  }, []);
 
   // ── Core analyze function ─────────────────────────────────────────────────
   const analyze = useCallback(async (fenStr: string, silent = false) => {
@@ -249,13 +279,25 @@ export default function AnalysisPage() {
     }
   }, [fen, autoAnalyze]);
 
-  // ── Load FEN ──────────────────────────────────────────────────────────────
-  const loadFen = (f: string) => {
+  // ── Load FEN — tạo game session mới từ FEN ──────────────────────────────
+  const loadFen = async (f: string) => {
     try {
-      setFen(f); setBoard(fenToBoard(f)); setResult(null); setArrows([]);
-      setError(""); setSelLine(null); setSelected(null); setLegalMoves([]);
-      setLastMove(null); setCurrentTurn(fenTurn(f));
-      setHistory([{fen:f,move:null}]); setHistIdx(0); setFenInput(f);
+      fenToBoard(f); // validate FEN trước
+      // Tạo game mới với mode pvp (không có AI) và thời gian vô hạn
+      const s = await api.newGame('pvp', 9999);
+      // Undo về vị trí ban đầu rồi apply FEN — hoặc đơn giản hơn: dùng game mới
+      // Vì API không hỗ trợ load FEN trực tiếp, ta dùng board từ FEN để hiển thị
+      // nhưng legal moves từ server (game mới = vị trí ban đầu)
+      // TODO: khi server hỗ trợ load FEN, gọi endpoint đó
+      setGameId(s.gameId);
+      setFen(f); setFenInput(f);
+      setBoard(fenToBoard(f));
+      setLegalMoves(s.legalMoves);
+      setCurrentTurn(fenTurn(f));
+      setResult(null); setArrows([]);
+      setError(""); setSelLine(null); setSelected(null);
+      setLastMove(null);
+      setHistory([{fen:f,move:null}]); setHistIdx(0);
     } catch { setError("FEN không hợp lệ"); }
   };
 
@@ -293,55 +335,88 @@ export default function AnalysisPage() {
     URL.revokeObjectURL(url);
   };
 
-  // ── Click bàn cờ ─────────────────────────────────────────────────────────
-  const handleCellClick = useCallback((rowRaw:number, colRaw:number) => {
+  // ── Click bàn cờ — dùng API để validate và apply nước đi đúng luật ────────
+  const handleCellClick = useCallback(async (rowRaw:number, colRaw:number) => {
+    if (!gameId) return;
     const row = flipped ? 9-rowRaw : rowRaw;
     const col = flipped ? 8-colRaw : colRaw;
     const cell = board[row]?.[col];
+
     if (!selected) {
-      if (cell?.color===currentTurn) {
-        setSelected([row,col]);
-        const ms:MoveDto[]=[];
-        for(let r=0;r<10;r++) for(let c=0;c<9;c++)
-          if(!(r===row&&c===col)&&board[r]?.[c]?.color!==currentTurn)
-            ms.push({fromRow:row,fromCol:col,toRow:r,toCol:c});
-        setLegalMoves(ms);
+      // Chọn quân của lượt hiện tại
+      if (cell?.color === currentTurn) {
+        setSelected([row, col]);
+        // Lọc legal moves của quân này từ danh sách server trả về
+        const ms = legalMoves.filter(m => m.fromRow === row && m.fromCol === col);
+        setLegalMoves(ms.length > 0 ? ms : legalMoves); // giữ nguyên nếu không có
       }
       return;
     }
-    const [fr,fc]=selected;
-    if(fr===row&&fc===col){setSelected(null);setLegalMoves([]);return;}
-    if(cell?.color===currentTurn){
-      setSelected([row,col]);
-      const ms:MoveDto[]=[];
-      for(let r=0;r<10;r++) for(let c=0;c<9;c++)
-        if(!(r===row&&c===col)&&board[r]?.[c]?.color!==currentTurn)
-          ms.push({fromRow:row,fromCol:col,toRow:r,toCol:c});
-      setLegalMoves(ms); return;
-    }
-    const nb = board.map(r=>r.map(c=>({...c})));
-    nb[row][col]=nb[fr][fc]; nb[fr][fc]={symbol:null,color:null,type:null};
-    const mv:MoveDto={fromRow:fr,fromCol:fc,toRow:row,toCol:col};
-    const nextTurn = currentTurn==="red"?"black":"red";
-    const newFen = boardToFen(nb,nextTurn);
-    const label = `${String.fromCharCode(97+fc)}${9-fr}${String.fromCharCode(97+col)}${9-row}`;
-    setBoard(nb); setLastMove(mv); setSelected(null); setLegalMoves([]);
-    setCurrentTurn(nextTurn); setResult(null); setArrows([]);
-    setFen(newFen); setFenInput(newFen);
-    const newHist=[...history.slice(0,histIdx+1),{fen:newFen,move:mv,label}];
-    setHistory(newHist); setHistIdx(newHist.length-1);
-    // Auto-analyze ngay sau khi đi nước
-    if (autoAnalyze) setTimeout(()=>analyze(newFen,true),100);
-  }, [board,selected,currentTurn,history,histIdx,flipped,autoAnalyze,analyze]);
 
-  // ── Điều hướng lịch sử ───────────────────────────────────────────────────
-  const goHist = useCallback((idx:number) => {
-    const h=history[idx]; if(!h) return;
-    setHistIdx(idx); setFen(h.fen); setBoard(fenToBoard(h.fen));
-    setCurrentTurn(fenTurn(h.fen)); setLastMove(h.move);
-    setResult(null); setArrows([]); setSelected(null); setLegalMoves([]);
-    setFenInput(h.fen);
-    if (autoAnalyze) setTimeout(()=>analyze(h.fen,true),100);
+    const [fr, fc] = selected;
+    if (fr === row && fc === col) { setSelected(null); setLegalMoves([]); return; }
+
+    // Chọn lại quân khác cùng màu
+    if (cell?.color === currentTurn) {
+      setSelected([row, col]);
+      return;
+    }
+
+    // Kiểm tra nước đi có hợp lệ không
+    const isLegal = legalMoves.some(
+      m => m.fromRow === fr && m.fromCol === fc && m.toRow === row && m.toCol === col
+    );
+    if (!isLegal) { setSelected(null); setLegalMoves([]); return; }
+
+    // Gọi API để thực hiện nước đi — server validate và trả về state mới
+    try {
+      const s = await api.move(gameId, { fromRow: fr, fromCol: fc, toRow: row, toCol: col });
+      const mv: MoveDto = { fromRow: fr, fromCol: fc, toRow: row, toCol: col };
+      const label = `${String.fromCharCode(97+fc)}${9-fr}${String.fromCharCode(97+col)}${9-row}`;
+      const newFen = boardToFen(s.board, s.currentTurn);
+
+      setBoard(s.board);
+      setLegalMoves(s.legalMoves);
+      setCurrentTurn(s.currentTurn);
+      setLastMove(s.lastMove ?? mv);
+      setFen(newFen); setFenInput(newFen);
+      setResult(null); setArrows([]);
+      setSelected(null);
+
+      const newHist = [...history.slice(0, histIdx + 1), { fen: newFen, move: mv, label }];
+      setHistory(newHist);
+      setHistIdx(newHist.length - 1);
+
+      if (autoAnalyze) setTimeout(() => analyze(newFen, true), 100);
+    } catch {
+      setSelected(null);
+    }
+  }, [gameId, board, selected, currentTurn, legalMoves, history, histIdx, flipped, autoAnalyze, analyze]);
+
+  // ── Điều hướng lịch sử — tạo lại game session tại vị trí đó ────────────
+  const goHist = useCallback(async (idx: number) => {
+    const h = history[idx]; if (!h) return;
+    // Tạo game mới và replay các nước đi đến idx
+    try {
+      const s0 = await api.newGame('pvp', 9999);
+      let gid = s0.gameId;
+      let lastState = s0;
+      // Replay từng nước đi
+      for (let i = 1; i <= idx; i++) {
+        const hh = history[i];
+        if (!hh.move) continue;
+        lastState = await api.move(gid, hh.move);
+      }
+      setGameId(gid);
+      setBoard(lastState.board);
+      setLegalMoves(lastState.legalMoves);
+      setCurrentTurn(lastState.currentTurn);
+      setLastMove(lastState.lastMove);
+      setHistIdx(idx);
+      setFen(h.fen); setFenInput(h.fen);
+      setResult(null); setArrows([]); setSelected(null);
+      if (autoAnalyze) setTimeout(() => analyze(h.fen, true), 100);
+    } catch { /* ignore */ }
   }, [history, autoAnalyze, analyze]);
 
   // Keyboard navigation
