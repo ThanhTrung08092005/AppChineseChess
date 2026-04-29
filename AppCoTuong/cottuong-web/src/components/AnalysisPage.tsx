@@ -28,20 +28,28 @@ interface AnalysisResult {
   lines:         InfoLine[];
 }
 
-const START_FEN = 'rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR w - - 0 1';
+// FEN chuẩn UCCI: r=Xe, h=Mã, e=Tượng, a=Sĩ, k=Tướng, c=Pháo, p=Tốt (uppercase=Đỏ)
+const START_FEN = 'rheakaehr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RHEAKAEHR w - - 0 1';
 
+// Hỗ trợ cả ký hiệu UCCI (r/h/e) lẫn ký hiệu cờ vua (n/b) để tương thích
 const FEN_MAP: Record<string, { color: 'red' | 'black'; symbol: string; type: string }> = {
+  // Đỏ (uppercase)
   K: { color: 'red',   symbol: '帥', type: 'general'  },
   A: { color: 'red',   symbol: '仕', type: 'advisor'  },
   E: { color: 'red',   symbol: '相', type: 'elephant' },
+  B: { color: 'red',   symbol: '相', type: 'elephant' }, // alias
   H: { color: 'red',   symbol: '傌', type: 'horse'    },
+  N: { color: 'red',   symbol: '傌', type: 'horse'    }, // alias
   R: { color: 'red',   symbol: '俥', type: 'chariot'  },
   C: { color: 'red',   symbol: '炮', type: 'cannon'   },
   P: { color: 'red',   symbol: '兵', type: 'soldier'  },
+  // Đen (lowercase)
   k: { color: 'black', symbol: '將', type: 'general'  },
   a: { color: 'black', symbol: '士', type: 'advisor'  },
   e: { color: 'black', symbol: '象', type: 'elephant' },
+  b: { color: 'black', symbol: '象', type: 'elephant' }, // alias
   h: { color: 'black', symbol: '馬', type: 'horse'    },
+  n: { color: 'black', symbol: '馬', type: 'horse'    }, // alias
   r: { color: 'black', symbol: '車', type: 'chariot'  },
   c: { color: 'black', symbol: '砲', type: 'cannon'   },
   p: { color: 'black', symbol: '卒', type: 'soldier'  },
@@ -66,6 +74,28 @@ function fenToBoard(fen: string): CellDto[][] {
 
 function fenTurn(fen: string): 'red' | 'black' {
   return fen.split(' ')[1] === 'b' ? 'black' : 'red';
+}
+
+// Reverse map: symbol → FEN char
+const SYMBOL_TO_FEN: Record<string, string> = {
+  '帥': 'K', '仕': 'A', '相': 'E', '傌': 'H', '俥': 'R', '炮': 'C', '兵': 'P',
+  '將': 'k', '士': 'a', '象': 'e', '馬': 'h', '車': 'r', '砲': 'c', '卒': 'p',
+};
+
+function boardToFen(board: CellDto[][], turn: 'red' | 'black'): string {
+  const rows = board.map(row => {
+    let s = ''; let empty = 0;
+    for (const cell of row) {
+      if (!cell.symbol) { empty++; }
+      else {
+        if (empty) { s += empty; empty = 0; }
+        s += SYMBOL_TO_FEN[cell.symbol] ?? '?';
+      }
+    }
+    if (empty) s += empty;
+    return s;
+  });
+  return `${rows.join('/')} ${turn === 'red' ? 'w' : 'b'} - - 0 1`;
 }
 
 function fmtScore(line: InfoLine): string {
@@ -117,6 +147,11 @@ export default function AnalysisPage() {
   const [timeMs,   setTimeMs]   = useState(3000);
   const [hintMove, setHintMove] = useState<MoveDto | null>(null);
   const [selLine,  setSelLine]  = useState<InfoLine | null>(null);
+  // Trạng thái tương tác bàn cờ
+  const [selected,    setSelected]    = useState<[number,number] | null>(null);
+  const [legalMoves,  setLegalMoves]  = useState<MoveDto[]>([]);
+  const [lastMove,    setLastMove]    = useState<MoveDto | null>(null);
+  const [currentTurn, setCurrentTurn] = useState<'red'|'black'>(fenTurn(START_FEN));
   const analyzing = useRef(false);
 
   const analyze = useCallback(async (fenStr: string) => {
@@ -144,8 +179,71 @@ export default function AnalysisPage() {
     try {
       setFen(f); setBoard(fenToBoard(f));
       setResult(null); setHintMove(null); setError(''); setSelLine(null);
+      setSelected(null); setLegalMoves([]); setLastMove(null);
+      setCurrentTurn(fenTurn(f));
     } catch { setError('FEN không hợp lệ'); }
   };
+
+  // ── Xử lý click bàn cờ — cho phép đi thử quân ──────────────────────────
+  const handleCellClick = useCallback((row: number, col: number) => {
+    const cell = board[row]?.[col];
+
+    if (!selected) {
+      // Chọn quân của lượt hiện tại
+      if (cell?.color === currentTurn) {
+        setSelected([row, col]);
+        setHintMove(null);
+        // Tính nước đi hợp lệ đơn giản (chỉ highlight ô trống + ô địch)
+        const moves: MoveDto[] = [];
+        for (let r = 0; r < 10; r++)
+          for (let c = 0; c < 9; c++)
+            if (!(r === row && c === col) && board[r]?.[c]?.color !== currentTurn)
+              moves.push({ fromRow: row, fromCol: col, toRow: r, toCol: c });
+        setLegalMoves(moves);
+      }
+      return;
+    }
+
+    // Đã chọn quân — thực hiện nước đi
+    const [fr, fc] = selected;
+    if (fr === row && fc === col) {
+      // Click lại ô đang chọn → bỏ chọn
+      setSelected(null); setLegalMoves([]);
+      return;
+    }
+
+    if (cell?.color === currentTurn) {
+      // Chọn quân khác cùng màu
+      setSelected([row, col]);
+      const moves: MoveDto[] = [];
+      for (let r = 0; r < 10; r++)
+        for (let c = 0; c < 9; c++)
+          if (!(r === row && c === col) && board[r]?.[c]?.color !== currentTurn)
+            moves.push({ fromRow: row, fromCol: col, toRow: r, toCol: c });
+      setLegalMoves(moves);
+      return;
+    }
+
+    // Thực hiện nước đi: cập nhật board
+    const newBoard = board.map(r => r.map(c => ({ ...c })));
+    newBoard[row][col] = newBoard[fr][fc];
+    newBoard[fr][fc]   = { symbol: null, color: null, type: null };
+    const mv: MoveDto = { fromRow: fr, fromCol: fc, toRow: row, toCol: col };
+    const nextTurn = currentTurn === 'red' ? 'black' : 'red';
+
+    setBoard(newBoard);
+    setLastMove(mv);
+    setSelected(null);
+    setLegalMoves([]);
+    setCurrentTurn(nextTurn);
+    setResult(null);
+    setHintMove(null);
+
+    // Cập nhật FEN từ board mới
+    const newFen = boardToFen(newBoard, nextTurn);
+    setFen(newFen);
+    setFenInput(newFen);
+  }, [board, selected, currentTurn]);
 
   // Khi click vào 1 dòng depth → highlight nước đi đầu PV
   const selectLine = (line: InfoLine) => {
@@ -237,12 +335,12 @@ export default function AnalysisPage() {
           <div className="board-wrap" style={{ position: 'relative' }}>
             <Board
               board={board}
-              legalMoves={[]}
-              lastMove={null}
-              selected={null}
+              legalMoves={legalMoves}
+              lastMove={lastMove}
+              selected={selected}
               hintMove={hintMove}
-              onCellClick={() => {}}
-              disabled={true}
+              onCellClick={handleCellClick}
+              disabled={loading}
             />
             {loading && (
               <div className="board-spin">🔍 Pikafish đang phân tích...</div>
@@ -258,16 +356,14 @@ export default function AnalysisPage() {
           }}>
             <div style={{
               width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
-              background: fenTurn(fen) === 'red' ? 'var(--red)' : '#222',
+              background: currentTurn === 'red' ? 'var(--red)' : '#222',
             }} />
             <span style={{ fontWeight: 600 }}>
-              Lượt: {fenTurn(fen) === 'red' ? 'ĐỎ' : 'ĐEN'}
+              Lượt: {currentTurn === 'red' ? '🔴 ĐỎ' : '⚫ ĐEN'}
             </span>
-            {result && (
-              <span style={{ marginLeft: 'auto', color: 'var(--muted)' }}>
-                Depth {result.depth} · {fmtNodes(result.nodes)} nodes
-              </span>
-            )}
+            <span style={{ marginLeft: 'auto', color: 'var(--muted)', fontSize: '.72rem' }}>
+              Click quân để đi thử · Nhấn Phân tích để Pikafish đánh giá
+            </span>
           </div>
 
           {error && (
