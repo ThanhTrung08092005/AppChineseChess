@@ -1,12 +1,19 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import type { CellDto, MoveDto } from '../api/gameApi';
 
+export interface ArrowDef {
+  fromRow: number; fromCol: number;
+  toRow:   number; toCol:   number;
+  color:   string; // e.g. 'rgba(231,76,60,0.8)'
+}
+
 interface Props {
   board:       CellDto[][];
   legalMoves:  MoveDto[];
   lastMove:    MoveDto | null;
   selected:    [number, number] | null;
   hintMove:    MoveDto | null;
+  arrows?:     ArrowDef[];   // mũi tên phân tích
   onCellClick: (row: number, col: number) => void;
   disabled:    boolean;
 }
@@ -28,8 +35,52 @@ function calcSize() {
   return { cell, marg, pr, w, h };
 }
 
-export default function Board({ board, legalMoves, lastMove, selected, hintMove, onCellClick, disabled }: Props) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+// Vẽ mũi tên từ (x1,y1) → (x2,y2)
+function drawArrow(g: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number, color: string, cell: number) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len = Math.sqrt(dx*dx + dy*dy);
+  if (len < 1) return;
+  const ux = dx/len, uy = dy/len;
+  const headLen = Math.max(12, cell * 0.28);
+  const lineW   = Math.max(4, cell * 0.1);
+  const pr      = Math.max(12, cell * 0.38);
+
+  // Rút ngắn đầu/cuối để không đè lên quân
+  const sx = x1 + ux * pr;
+  const sy = y1 + uy * pr;
+  const ex = x2 - ux * (pr + headLen * 0.5);
+  const ey = y2 - uy * (pr + headLen * 0.5);
+
+  g.save();
+  g.strokeStyle = color;
+  g.fillStyle   = color;
+  g.lineWidth   = lineW;
+  g.lineCap     = 'round';
+
+  // Thân mũi tên
+  g.beginPath();
+  g.moveTo(sx, sy);
+  g.lineTo(ex, ey);
+  g.stroke();
+
+  // Đầu mũi tên
+  const angle = Math.atan2(dy, dx);
+  g.beginPath();
+  g.moveTo(x2 - ux * pr, y2 - uy * pr);
+  g.lineTo(
+    x2 - ux * pr - headLen * Math.cos(angle - Math.PI/6),
+    y2 - uy * pr - headLen * Math.sin(angle - Math.PI/6)
+  );
+  g.lineTo(
+    x2 - ux * pr - headLen * Math.cos(angle + Math.PI/6),
+    y2 - uy * pr - headLen * Math.sin(angle + Math.PI/6)
+  );
+  g.closePath();
+  g.fill();
+  g.restore();
+}
+
+export default function Board({ board, legalMoves, lastMove, selected, hintMove, arrows = [], onCellClick, disabled }: Props) {  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState(calcSize);
 
   // Cập nhật kích thước khi resize
@@ -136,6 +187,15 @@ export default function Board({ board, legalMoves, lastMove, selected, hintMove,
       g.beginPath(); g.arc(hcx, hcy, PR+4, 0, Math.PI*2); g.stroke();
     }
 
+    // Mũi tên phân tích (arrows)
+    for (const arrow of arrows) {
+      const x1 = MARG + arrow.fromCol * CELL;
+      const y1 = MARG + arrow.fromRow * CELL;
+      const x2 = MARG + arrow.toCol   * CELL;
+      const y2 = MARG + arrow.toRow   * CELL;
+      drawArrow(g, x1, y1, x2, y2, arrow.color, CELL);
+    }
+
     // Quân cờ
     const fontSize = Math.max(10, Math.floor(PR * 1.1));
     for (let r = 0; r < ROWS; r++) {
@@ -167,7 +227,7 @@ export default function Board({ board, legalMoves, lastMove, selected, hintMove,
         g.fillText(cell.symbol ?? '', cx, cy + 1);
       }
     }
-  }, [board, hints, lastMove, selected, hintMove, CELL, MARG, PR, W, H]);
+  }, [board, hints, lastMove, selected, hintMove, arrows, CELL, MARG, PR, W, H]);
 
   useEffect(() => { draw(); }, [draw]);
 
